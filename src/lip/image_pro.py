@@ -587,6 +587,31 @@ def GammaCorrection(image, gamma, intensity_levels=256):
     # Convertir de nuevo a uint8
     return corrected.astype(np.uint8)
 
+
+def GammaCorrectionBGR(image, gamma, intensity_levels=256):
+    """
+    Applies gamma correction to a grayscale or RGB image.
+
+    Parameters:
+        image: uint8 numpy array of shape (H, W) or (H, W, 3).
+        gamma: Gamma value for correction (gamma > 1 darkens, gamma < 1 brightens).
+        intensity_levels: Number of intensity levels (default is 256 for 8-bit images).
+
+    Returns:
+        corrected_image: uint8 numpy array with gamma correction applied.
+    """
+    # Convertir a float en [0,1]
+    normalized = image.astype(np.float32) / (intensity_levels - 1)
+    
+    # Aplicar la transformación gamma a todos los canales
+    corrected = np.power(normalized, gamma)
+    
+    # Escalar de nuevo a [0, 255]
+    corrected = np.clip(corrected * (intensity_levels - 1), 0, 255)
+    
+    return corrected.astype(np.uint8)
+
+
 def BgrToGray(img):
     """
     Convert a BGR image to a grayscale image.
@@ -2316,6 +2341,28 @@ def MedianFilterBGR(image, window_size):
                 filtered[y, x, c] = np.median(window)
     return filtered
 
+def MedianFilterBGRScipy(image, window_size):
+    """
+    Applies a fast median filter to a BGR color image using scipy.ndimage.
+
+    Parameters:
+        image: BGR color image (numpy array, shape HxWx3).
+        window_size: Size of the square window to compute the median (must be odd).
+
+    Returns:
+        Filtered image with the median filter applied to each channel.
+    """
+    from scipy.ndimage import median_filter
+
+    if window_size % 2 == 0:
+        raise ValueError("Window size must be odd.")
+
+    # Apply median filter to each channel using vectorized scipy function
+    filtered = np.zeros_like(image, dtype=np.uint8)
+    for c in range(image.shape[2]):
+        filtered[..., c] = median_filter(image[..., c], size=window_size, mode='reflect')
+    return filtered
+
 def MeanShiftFilterBGR(image, hs, hr, max_iter=5, eps=1.0):
     """
     Fast mean-shift filter for BGR images (applied in LAB space).
@@ -2335,7 +2382,7 @@ def MeanShiftFilterBGR(image, hs, hr, max_iter=5, eps=1.0):
     lab_filtered = np.zeros_like(lab)
     # Apply mean-shift to each channel independently (L, A, B)
     for c in range(3):
-        lab_filtered[..., c] = MeanShiftFilterGrayscale1(lab[..., c], hs, hr, max_iter, eps)
+        lab_filtered[..., c] = MeanShiftFilterGrayscale(lab[..., c], hs, hr, max_iter, eps)
     # Convert back to BGR
     return cv.cvtColor(lab_filtered, cv.COLOR_LAB2BGR)
 
@@ -3232,3 +3279,357 @@ def CannyLikeDetector(image: np.ndarray, sigma=1.0, tlow=0.1, thigh=0.3) -> np.n
 
     edges = HysteresisThresholdFIFO(norm_suppressed, T_high, T_low)
     return edges
+
+
+def harris_corner_detector(image, window_size=3, k=0.04, sigma=1, thresh_ratio=0.1):
+    # 1. Escala de grises y float32
+    gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+    gray = np.float32(gray)
+
+    # 2. Gradientes
+    Ix = cv.Sobel(gray, cv.CV_32F, 1, 0, ksize=3)
+    Iy = cv.Sobel(gray, cv.CV_32F, 0, 1, ksize=3)
+
+    # 3. Productos de gradientes
+    Ix2 = Ix * Ix
+    Iy2 = Iy * Iy
+    Ixy = Ix * Iy
+
+    # 4. Suavizado Gaussiano
+    Sx2 = cv.GaussianBlur(Ix2, (window_size, window_size), sigma)
+    Sy2 = cv.GaussianBlur(Iy2, (window_size, window_size), sigma)
+    Sxy = cv.GaussianBlur(Ixy, (window_size, window_size), sigma)
+
+    # 5. Respuesta de Harris
+    detZ = (Sx2 * Sy2) - (Sxy ** 2)
+    traceZ = Sx2 + Sy2
+    R = detZ - k * (traceZ ** 2)
+
+    # 6. Normalizar
+    R_norm = cv.normalize(R, None, 0, 1, cv.NORM_MINMAX)
+
+    # 7. Umbral + supresión de no-máximos
+    thresh_val = thresh_ratio * np.max(R_norm)
+    corners = np.zeros_like(gray, dtype=np.uint8)
+
+    # NMS: comparar con vecinos en una ventana 3x3
+    for y in range(1, R_norm.shape[0] - 1):
+        for x in range(1, R_norm.shape[1] - 1):
+            if R_norm[y, x] > thresh_val:
+                if R_norm[y, x] == np.max(R_norm[y-1:y+2, x-1:x+2]):
+                    corners[y, x] = 255
+
+    return R_norm, corners
+
+def tomasi_kanade_detector(image, window_size=3, sigma=1, thresh_ratio=0.01):
+    # 1. Escala de grises y float32
+    gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+    gray = np.float32(gray)
+
+    # 2. Gradientes
+    Ix = cv.Sobel(gray, cv.CV_32F, 1, 0, ksize=3)
+    Iy = cv.Sobel(gray, cv.CV_32F, 0, 1, ksize=3)
+
+    # 3. Productos de gradientes
+    Ix2 = Ix * Ix
+    Iy2 = Iy * Iy
+    Ixy = Ix * Iy
+
+    # 4. Suavizado (ventana gaussiana)
+    Sx2 = cv.GaussianBlur(Ix2, (window_size, window_size), sigma)
+    Sy2 = cv.GaussianBlur(Iy2, (window_size, window_size), sigma)
+    Sxy = cv.GaussianBlur(Ixy, (window_size, window_size), sigma)
+
+    # 5. Calcular el menor autovalor (lambda2) usando fórmula (7.34)
+    # zx = Sx2, zy = Sy2, zxy = Sxy
+    traceZ = Sx2 + Sy2
+    diffZ  = Sx2 - Sy2
+    lambda2 = 0.5 * (traceZ - np.sqrt(diffZ**2 + 4 * (Sxy**2)))
+
+    # 6. Normalizar y umbralizar
+    lambda2_norm = cv.normalize(lambda2, None, 0, 1, cv.NORM_MINMAX)
+    thresh_val = thresh_ratio * np.max(lambda2_norm)
+    corners = np.zeros_like(gray, dtype=np.uint8)
+    corners[lambda2_norm > thresh_val] = 255
+
+    return lambda2_norm, corners
+
+
+# --------------------------------- #
+#                                   #
+#   resize functions                #
+#                                   #
+# --------------------------------- #
+
+def resize_nearest_neighbor(image, new_width, new_height):
+    """
+    Resize an image using nearest-neighbor interpolation.
+
+    Parameters:
+        image (numpy.ndarray): Input image (grayscale or color).
+        new_width (int): Desired output width.
+        new_height (int): Desired output height.
+
+    Returns:
+        numpy.ndarray: Resized image with the same dtype as the input.
+    """
+    h_in, w_in = image.shape[:2]
+    h_out, w_out = new_height, new_width
+
+    # Create empty output image
+    if len(image.shape) == 3:  # Color image
+        output = np.zeros((h_out, w_out, image.shape[2]), dtype=image.dtype)
+    else:  # Grayscale image
+        output = np.zeros((h_out, w_out), dtype=image.dtype)
+
+    # Scaling: map output coordinates back to input coordinates and pick nearest pixel
+    for y_out in range(h_out):
+        for x_out in range(w_out):
+            # Inverse mapping (output -> input)
+            x_in = int(round(x_out * w_in / w_out))
+            y_in = int(round(y_out * h_in / h_out))
+
+            # Clamp indices to avoid out-of-range access
+            x_in = min(w_in - 1, x_in)
+            y_in = min(h_in - 1, y_in)
+
+            output[y_out, x_out] = image[y_in, x_in]
+
+    return output
+
+def resize_bilinear(image, new_width, new_height):
+    """
+    Resizes an image using bilinear interpolation.
+
+    Parameters:
+        image (numpy.ndarray): Input image (grayscale or color).
+        new_width (int): Output width.
+        new_height (int): Output height.
+
+    Returns:
+        numpy.ndarray: Resized image.
+    """
+    h_in, w_in = image.shape[:2]
+    h_out, w_out = new_height, new_width
+
+    # Output image
+    if len(image.shape) == 3:
+        output = np.zeros((h_out, w_out, image.shape[2]), dtype=np.float32)
+    else:
+        output = np.zeros((h_out, w_out), dtype=np.float32)
+
+    for y_out in range(h_out):
+        for x_out in range(w_out):
+            # Map output coordinate to input (continuous space)
+            x_in = (x_out + 0.5) * (w_in / w_out) - 0.5
+            y_in = (y_out + 0.5) * (h_in / h_out) - 0.5
+
+            x1 = int(np.floor(x_in))
+            y1 = int(np.floor(y_in))
+            x2 = min(x1 + 1, w_in - 1)
+            y2 = min(y1 + 1, h_in - 1)
+
+            a = x_in - x1
+            b = y_in - y1
+
+            # Neighboring pixels
+            Q11 = image[y1, x1]
+            Q21 = image[y1, x2]
+            Q12 = image[y2, x1]
+            Q22 = image[y2, x2]
+
+            # Bilinear interpolation
+            output[y_out, x_out] = (1 - a) * (1 - b) * Q11 + \
+                                   a * (1 - b) * Q21 + \
+                                   (1 - a) * b * Q12 + \
+                                   a * b * Q22
+
+    return np.clip(output, 0, 255).astype(np.uint8)
+
+def cubic_weight(x, a=-0.5):
+    """Cubic weight function (Keys, 1981)."""
+    x = abs(x)
+    if x < 1:
+        return (a + 2) * (x ** 3) - (a + 3) * (x ** 2) + 1
+    elif x < 2:
+        return a * (x ** 3) - (5 * a) * (x ** 2) + (8 * a) * x - 4 * a
+    else:
+        return 0
+
+'''
+def resize_bicubic(image, new_width, new_height):
+    """
+    Resizes an image using bicubic interpolation.
+
+    Parameters:
+        image (numpy.ndarray): Input image (grayscale or color).
+        new_width (int): Output width.
+        new_height (int): Output height.
+
+    Returns:
+        numpy.ndarray: Resized image.
+    """
+    h_in, w_in = image.shape[:2]
+    h_out, w_out = new_height, new_width
+
+    # Output image
+    if len(image.shape) == 3:
+        output = np.zeros((h_out, w_out, image.shape[2]), dtype=np.float32)
+    else:
+        output = np.zeros((h_out, w_out), dtype=np.float32)
+
+    scale_x = w_in / w_out
+    scale_y = h_in / h_out
+
+    for y_out in range(h_out):
+        for x_out in range(w_out):
+            # Position in the original image
+            x_in = (x_out + 0.5) * scale_x - 0.5
+            y_in = (y_out + 0.5) * scale_y - 0.5
+
+            x_base = int(np.floor(x_in))
+            y_base = int(np.floor(y_in))
+
+            value = np.zeros(image.shape[2], dtype=np.float32) if len(image.shape) == 3 else 0.0
+
+            # Iterate over 4x4 neighbors
+            for m in range(-1, 3):
+                for n in range(-1, 3):
+                    x_idx = min(max(x_base + n, 0), w_in - 1)
+                    y_idx = min(max(y_base + m, 0), h_in - 1)
+
+                    wx = cubic_weight(x_in - (x_base + n))
+                    wy = cubic_weight(y_in - (y_base + m))
+                    w = wx * wy
+
+                    value += image[y_idx, x_idx] * w
+
+            output[y_out, x_out] = value
+
+    return np.clip(output, 0, 255).astype(np.uint8)
+'''
+
+def resize_bicubic(image, new_width, new_height):
+    """
+    Fast bicubic image resizing using NumPy vectorization.
+
+    Parameters:
+        image (numpy.ndarray): Input image (grayscale or color).
+        new_width (int): Output width.
+        new_height (int): Output height.
+
+    Returns:
+        numpy.ndarray: Resized image.
+    """
+    h_in, w_in = image.shape[:2]
+    h_out, w_out = new_height, new_width
+    channels = image.shape[2] if image.ndim == 3 else 1
+
+    # Prepare output
+    output = np.zeros((h_out, w_out, channels), dtype=np.float32) if channels > 1 else np.zeros((h_out, w_out), dtype=np.float32)
+
+    # Precompute input coordinates
+    x_out = np.arange(w_out)
+    y_out = np.arange(h_out)
+    x_in = (x_out + 0.5) * (w_in / w_out) - 0.5
+    y_in = (y_out + 0.5) * (h_in / h_out) - 0.5
+
+    x_base = np.floor(x_in).astype(int)
+    y_base = np.floor(y_in).astype(int)
+
+    # Precompute weights
+    wx = np.zeros((w_out, 4))
+    for i in range(w_out):
+        for n in range(-1, 3):
+            wx[i, n + 1] = cubic_weight(x_in[i] - (x_base[i] + n))
+    wy = np.zeros((h_out, 4))
+    for j in range(h_out):
+        for m in range(-1, 3):
+            wy[j, m + 1] = cubic_weight(y_in[j] - (y_base[j] + m))
+
+    # Main loop (vectorized over output pixels)
+    for j in range(h_out):
+        y_idx = np.clip(y_base[j] + np.arange(-1, 3), 0, h_in - 1)
+        for i in range(w_out):
+            x_idx = np.clip(x_base[i] + np.arange(-1, 3), 0, w_in - 1)
+            if channels > 1:
+                patch = image[np.ix_(y_idx, x_idx)]
+                w_patch = wy[j][:, None] * wx[i][None, :]
+                output[j, i] = np.tensordot(w_patch, patch, axes=([0, 1], [0, 1]))
+            else:
+                patch = image[np.ix_(y_idx, x_idx)]
+                w_patch = wy[j][:, None] * wx[i][None, :]
+                output[j, i] = np.sum(w_patch * patch)
+
+    return np.clip(output, 0, 255).astype(np.uint8) if channels > 1 else np.clip(output, 0, 255).astype(np.uint8)
+
+def sinc(x):
+    return np.sinc(x)  # np.sinc includes π, uses sin(πx)/(πx)
+
+def lanczos_kernel(a=3, size=1000):
+    """Precomputes the Lanczos kernel over a continuous range."""
+    x = np.linspace(-a+1, a-1, size)
+    k = sinc(x) * sinc(x / a)
+    k[np.abs(x) >= a] = 0
+    return k
+
+def resize_lanczos_fast(image, new_width, new_height, a=3):
+    """
+    Resizes an image using fast Lanczos interpolation.
+
+    Parameters:
+        image (numpy.ndarray): Input image (grayscale or color).
+        new_width (int): Output width.
+        new_height (int): Output height.
+        a (int): Lanczos window parameter (default 3).
+
+    Returns:
+        numpy.ndarray: Resized image.
+    """
+    h_in, w_in = image.shape[:2]
+    h_out, w_out = new_height, new_width
+
+    scale_x = w_in / w_out
+    scale_y = h_in / h_out
+
+    # Precompute positions in the original image
+    x_coords = (np.arange(w_out) + 0.5) * scale_x - 0.5
+    y_coords = (np.arange(h_out) + 0.5) * scale_y - 0.5
+
+    # Precompute indices and weights for X
+    x_idx = np.floor(x_coords).astype(int)
+    x_weights = np.zeros((w_out, 2*a))
+    for i, xc in enumerate(x_coords):
+        for n in range(-a+1, a+1):
+            idx = min(max(x_idx[i] + n, 0), w_in - 1)
+            x_weights[i, n + a - 1] = sinc(xc - (x_idx[i] + n)) * sinc((xc - (x_idx[i] + n)) / a)
+
+    # Normalize weights
+    x_weights /= np.sum(x_weights, axis=1, keepdims=True)
+
+    # Step 1: horizontal interpolation
+    tmp = np.zeros((h_in, w_out, image.shape[2]), dtype=np.float32)
+    for i in range(w_out):
+        for n in range(-a+1, a+1):
+            idx = np.clip(x_idx[i] + n, 0, w_in-1)
+            tmp[:, i] += image[:, idx] * x_weights[i, n + a - 1]
+
+    # Precompute indices and weights for Y
+    y_idx = np.floor(y_coords).astype(int)
+    y_weights = np.zeros((h_out, 2*a))
+    for j, yc in enumerate(y_coords):
+        for m in range(-a+1, a+1):
+            idy = min(max(y_idx[j] + m, 0), h_in - 1)
+            y_weights[j, m + a - 1] = sinc(yc - (y_idx[j] + m)) * sinc((yc - (y_idx[j] + m)) / a)
+
+    # Normalize weights
+    y_weights /= np.sum(y_weights, axis=1, keepdims=True)
+
+    # Step 2: vertical interpolation
+    output = np.zeros((h_out, w_out, image.shape[2]), dtype=np.float32)
+    for j in range(h_out):
+        for m in range(-a+1, a+1):
+            idy = np.clip(y_idx[j] + m, 0, h_in-1)
+            output[j] += tmp[idy, :, :] * y_weights[j, m + a - 1]
+
+    return np.clip(output, 0, 255).astype(np.uint8)

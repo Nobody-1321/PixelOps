@@ -36,6 +36,8 @@ If you're interested in learning more about image processing techniques, the alg
 
 [Filtering of Periodic Noise in the Frequency Domain](https://medium.com/imagecraft/filtering-of-periodic-noise-in-the-frequency-domain-9b24d7b380d8)
 
+[Image resizing. Classical interpolation techniques](https://medium.com/gitconnected/image-resizing-classical-interpolation-techniques-29dc0321f4ad)
+
 ---
 
 ## Build & Run
