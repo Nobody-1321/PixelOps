@@ -2929,25 +2929,25 @@ def HysteresisThreshold(image, T_low, T_high):
 
 def RemoveIntensityRange(img, low, high, fill=0, inplace=False):
     """
-    Elimina (reemplaza) un rango de intensidades [low, high] en una imagen.
-    - Para imagenes en escala de grises: reemplaza los píxeles cuyo valor está en el rango.
-    - Para imagenes BGR: calcula la máscara sobre la conversión a gris y reemplaza los píxeles correspondientes en los 3 canales.
+    Removes (replaces) a range of intensities [low, high] in an image.
+    - For grayscale images: replaces pixels whose value is within the range.
+    - For BGR images: computes the mask on the grayscale conversion and replaces the corresponding pixels in all 3 channels.
 
-    Parámetros:
+    Parameters:
       img : np.ndarray
-        Imagen de entrada (grayscale o BGR uint8).
+        Input image (grayscale or BGR uint8).
       low, high : int
-        Límites inclusive del rango de intensidad a eliminar.
+        Inclusive limits of the intensity range to remove.
       fill : int (0..255)
-        Valor con el que se rellenan los píxeles eliminados (por defecto 0).
+        Value used to fill the removed pixels (default 0).
       inplace : bool
-        Si True modifica la imagen dada; si False devuelve una copia.
+        If True modifies the given image; if False returns a copy.
 
-    Retorna:
+    Returns:
       out : np.ndarray
-        Imagen con el rango eliminado.
+        Image with the range removed.
       mask : np.ndarray (bool)
-        Máscara (2D) de los píxeles que fueron reemplazados.
+        Mask (2D) of the pixels that were replaced.
     """
     if not inplace:
         out = img.copy()
