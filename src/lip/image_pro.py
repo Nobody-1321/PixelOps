@@ -587,7 +587,6 @@ def GammaCorrection(image, gamma, intensity_levels=256):
     # Convertir de nuevo a uint8
     return corrected.astype(np.uint8)
 
-
 def GammaCorrectionBGR(image, gamma, intensity_levels=256):
     """
     Applies gamma correction to a grayscale or RGB image.
@@ -610,7 +609,6 @@ def GammaCorrectionBGR(image, gamma, intensity_levels=256):
     corrected = np.clip(corrected * (intensity_levels - 1), 0, 255)
     
     return corrected.astype(np.uint8)
-
 
 def BgrToGray(img):
     """
@@ -2929,6 +2927,55 @@ def HysteresisThreshold(image, T_low, T_high):
     
     return weak_edges  # Retorna la imagen binaria con los bordes confirmados
 
+def RemoveIntensityRange(img, low, high, fill=0, inplace=False):
+    """
+    Elimina (reemplaza) un rango de intensidades [low, high] en una imagen.
+    - Para imagenes en escala de grises: reemplaza los píxeles cuyo valor está en el rango.
+    - Para imagenes BGR: calcula la máscara sobre la conversión a gris y reemplaza los píxeles correspondientes en los 3 canales.
+
+    Parámetros:
+      img : np.ndarray
+        Imagen de entrada (grayscale o BGR uint8).
+      low, high : int
+        Límites inclusive del rango de intensidad a eliminar.
+      fill : int (0..255)
+        Valor con el que se rellenan los píxeles eliminados (por defecto 0).
+      inplace : bool
+        Si True modifica la imagen dada; si False devuelve una copia.
+
+    Retorna:
+      out : np.ndarray
+        Imagen con el rango eliminado.
+      mask : np.ndarray (bool)
+        Máscara (2D) de los píxeles que fueron reemplazados.
+    """
+    if not inplace:
+        out = img.copy()
+    else:
+        out = img
+
+    # rango válido
+    low = int(low); high = int(high)
+    if low > high:
+        low, high = high, low
+
+    # grayscale
+    if out.ndim == 2:
+        mask = (out >= low) & (out <= high)
+        out[mask] = fill
+        return out, mask
+
+    # color BGR
+    if out.ndim == 3 and out.shape[2] == 3:
+        gray = cv.cvtColor(out, cv.COLOR_BGR2GRAY)
+        mask = (gray >= low) & (gray <= high)
+        # asignación a los 3 canales (broadcast)
+        out[mask] = fill
+        return out, mask
+
+    # otro caso -> no modificar
+    raise ValueError("Imagen debe ser 2D (grayscale) o 3D BGR (HxWx3).")
+
 # ---------------------------------#                                 
 #   Fourier Transform functions    #
 #                                  #
@@ -3280,7 +3327,6 @@ def CannyLikeDetector(image: np.ndarray, sigma=1.0, tlow=0.1, thigh=0.3) -> np.n
     edges = HysteresisThresholdFIFO(norm_suppressed, T_high, T_low)
     return edges
 
-
 def harris_corner_detector(image, window_size=3, k=0.04, sigma=1, thresh_ratio=0.1):
     # 1. Escala de grises y float32
     gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
@@ -3353,7 +3399,6 @@ def tomasi_kanade_detector(image, window_size=3, sigma=1, thresh_ratio=0.01):
     corners[lambda2_norm > thresh_val] = 255
 
     return lambda2_norm, corners
-
 
 # --------------------------------- #
 #                                   #
