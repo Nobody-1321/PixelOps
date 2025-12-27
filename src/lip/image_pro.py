@@ -253,6 +253,60 @@ def ComputeMappings(image, n_rows, n_cols, cell_h, cell_w, clip_limit):
 
     return mappings
 
+def HistogramEqualizationClaheGrayscale(image, clip_limit=10, grid_size=(8, 8)):
+    """
+    Applies CLAHE (Contrast Limited Adaptive Histogram Equalization) to a grayscale image 
+    or just a single channel.
+
+    Parameters:
+        image: uint8 numpy array of shape (height, width).
+        clip_limit: maximum allowed value for each histogram bin.
+        grid_size: tuple (n_rows, n_cols) indicating how many blocks the image is divided into.
+
+    Returns:
+        equalized_image: uint8 numpy array of the resulting image with enhanced contrast.
+    """
+    height, width = image.shape
+    n_rows, n_cols = grid_size
+    cell_h, cell_w = height // n_rows, width // n_cols
+
+    # Compute histogram mappings for each block
+    mappings = ComputeMappings(image, n_rows, n_cols, cell_h, cell_w, clip_limit)
+
+    # Apply bilinear interpolation to construct the output image
+    return ApplyInterpolation(image, mappings, n_rows, n_cols, cell_h, cell_w)
+
+def HistogramEqualizationClaheRGB(image, clip_limit=10, grid_size=(8, 8)):
+    """
+    Applies CLAHE (Contrast Limited Adaptive Histogram Equalization) to an RGB image.
+    
+    Parameters:
+        image: uint8 numpy array of shape (height, width, 3) representing an RGB image.
+        clip_limit: Maximum allowed value for each histogram bin.
+        grid_size: Tuple (n_rows, n_cols) indicating the number of regions the image is divided into.
+        
+    Returns:
+        equalized_image: uint8 numpy array of the resulting image with enhanced contrast.
+    """
+    # Convert image to LAB color space
+    lab_image = cv.cvtColor(image, cv.COLOR_RGB2LAB)
+    
+    # Extract the L channel (brightness)
+    l_channel, a_channel, b_channel = cv.split(lab_image)
+    
+    # Apply CLAHE to the L channel
+    clahe = HistogramEqualizationClaheGrayscale(l_channel, clip_limit, grid_size)
+    #l_channel_eq = clahe.apply(l_channel)
+    l_channel_eq = clahe
+    
+    # Merge the modified L channel back with A and B channels
+    lab_eq = cv.merge((l_channel_eq, a_channel, b_channel))
+    
+    # Convert the image back to RGB color space
+    equalized_image = cv.cvtColor(lab_eq, cv.COLOR_LAB2RGB)
+    
+    return equalized_image
+
 def ApplyInterpolation(image, mappings, n_rows, n_cols, cell_h, cell_w):
     """Applies bilinear interpolation to map pixel intensities using CLAHE mappings."""
     height, width = image.shape
@@ -405,60 +459,6 @@ def HistogramMatchingRGB(img_ref, img_target):
     img_matched = cv.merge(matched_channels)
 
     return img_matched
-
-def HistogramEqualizationClaheGrayscale(image, clip_limit=10, grid_size=(8, 8)):
-    """
-    Applies CLAHE (Contrast Limited Adaptive Histogram Equalization) to a grayscale image 
-    or just a single channel.
-
-    Parameters:
-        image: uint8 numpy array of shape (height, width).
-        clip_limit: maximum allowed value for each histogram bin.
-        grid_size: tuple (n_rows, n_cols) indicating how many blocks the image is divided into.
-
-    Returns:
-        equalized_image: uint8 numpy array of the resulting image with enhanced contrast.
-    """
-    height, width = image.shape
-    n_rows, n_cols = grid_size
-    cell_h, cell_w = height // n_rows, width // n_cols
-
-    # Compute histogram mappings for each block
-    mappings = ComputeMappings(image, n_rows, n_cols, cell_h, cell_w, clip_limit)
-
-    # Apply bilinear interpolation to construct the output image
-    return ApplyInterpolation(image, mappings, n_rows, n_cols, cell_h, cell_w)
-
-def HistogramEqualizationClaheRGB(image, clip_limit=10, grid_size=(8, 8)):
-    """
-    Applies CLAHE (Contrast Limited Adaptive Histogram Equalization) to an RGB image.
-    
-    Parameters:
-        image: uint8 numpy array of shape (height, width, 3) representing an RGB image.
-        clip_limit: Maximum allowed value for each histogram bin.
-        grid_size: Tuple (n_rows, n_cols) indicating the number of regions the image is divided into.
-        
-    Returns:
-        equalized_image: uint8 numpy array of the resulting image with enhanced contrast.
-    """
-    # Convert image to LAB color space
-    lab_image = cv.cvtColor(image, cv.COLOR_RGB2LAB)
-    
-    # Extract the L channel (brightness)
-    l_channel, a_channel, b_channel = cv.split(lab_image)
-    
-    # Apply CLAHE to the L channel
-    clahe = HistogramEqualizationClaheGrayscale(l_channel, clip_limit, grid_size)
-    #l_channel_eq = clahe.apply(l_channel)
-    l_channel_eq = clahe
-    
-    # Merge the modified L channel back with A and B channels
-    lab_eq = cv.merge((l_channel_eq, a_channel, b_channel))
-    
-    # Convert the image back to RGB color space
-    equalized_image = cv.cvtColor(lab_eq, cv.COLOR_LAB2RGB)
-    
-    return equalized_image
 
 def BihistogramEqualizationRGB(image):
     """

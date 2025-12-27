@@ -7,3 +7,16 @@ src/*.png
 /src/*.jpg
 /src/*.jpeg
 /src/*NO.py
+/tempo
+/pixelops.egg-info
+/pixelops/__pycache__
+/pixelops/core/__pycache__/
+/pixelops/enhancement/__pycache__/
+/pixelops/segmentation/__pycache__/
+/pixelops/histogram/__pycache__/
+/pixelops/filtering/__pycache__/
+/pixelops/filtering/frequency/__pycache__/
+/pixelops/filtering/spatial/__pycache__/
+/pixelops/edges/__pycache__/
+/pixelops/visualization/__pycache__/
+/src/pixelops.egg-info
