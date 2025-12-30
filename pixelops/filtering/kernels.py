@@ -70,6 +70,19 @@ def create_gaussian_kernel(sigma: float) -> np.ndarray:
     kernel /= norm
     return kernel
 
+def create_gaussian_kernel_radius(sigma: float, radius: int | None = None):
+    
+    if radius is None:
+        radius = int(3 * sigma)
+    
+    size = 2 * radius + 1
+    
+    x = np.arange(-radius, radius + 1, dtype=np.float32)
+    kernel = np.exp(-(x * x) / (2 * sigma * sigma))
+    kernel /= kernel.sum()
+    
+    return kernel
+
 def create_gaussian_derivative_kernel(sigma: float) -> np.ndarray:
     """
     Generate a 1D first-order Gaussian derivative kernel.

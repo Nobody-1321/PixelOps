@@ -40,7 +40,6 @@ def median_from_histogram(hist: np.ndarray, total: int) -> int:
             return i
     return 255
 
-
 @njit(parallel=True, fastmath=True, cache=True)
 def median_filter_grayscale_numba(
     padded: np.ndarray,
@@ -153,6 +152,9 @@ def median_filter_grayscale(
 
     if window_size % 2 == 0:
         raise ValueError("Window size must be odd.")
+    
+    if image.ndim != 2:
+        raise ValueError("Input image must be grayscale (2D array).")
 
     pad = window_size // 2
     padded = np.pad(image, pad, mode="edge")
@@ -200,6 +202,9 @@ def median_filter_bgr(
 
     if window_size % 2 == 0:
         raise ValueError("Window size must be odd.")
+    
+    if image.ndim != 3 or image.shape[2] != 3:
+        raise ValueError("Input image must be BGR (3D array with 3 channels).")
 
     pad = window_size // 2
     out = np.empty_like(image, dtype=np.uint8)

@@ -53,16 +53,19 @@ img = generate_test_image((1024, 512))
 # ============================
 def run_timeit():
     n_runs = 10
+    window_size = 9
 
     # warm-up
     median_filter_grayscale(img, window_size=3)
+    cv.medianBlur(img, window_size)
 
     # Pasar kernel en globals
     globals_dict = {
         'img': img,
-        "window_size": 9,
+        "window_size": window_size,
         'median_filter_grayscale': median_filter_grayscale,
-        'MedianFilterGrayscale': MedianFilterGrayscale
+        'MedianFilterGrayscale': MedianFilterGrayscale,
+        'cv': cv,
     }
 
     t_custom = timeit.timeit(
@@ -71,53 +74,71 @@ def run_timeit():
         number=n_runs
     )
 
-    t_normal = timeit.timeit(
+    t_opencv = timeit.timeit(
+        stmt="cv.medianBlur(img, window_size)",
+        globals=globals_dict,
+        number=n_runs
+    )
+
+    t_naive = timeit.timeit(
         stmt='MedianFilterGrayscale(img, window_size=window_size)',
         globals=globals_dict,
         number=n_runs
     )
 
     print("=== STEADY STATE BENCHMARK ===")
+    print(f"Window size            : {window_size}")
+    print(f"Image shape            : {img.shape}")
     print(f"Runs                   : {n_runs}")
-    print( f" Custom Median average   : {t_custom / n_runs:.6f} s")
-    print(f" Naive Median average    : {t_normal / n_runs:.6f} s")
+    print(f" Custom Median average : {t_custom / n_runs:.6f} s")
+    print(f" OpenCV Median average : {t_opencv / n_runs:.6f} s")
+    print(f" Naive Median average  : {t_naive / n_runs:.6f} s")
+    print()
+    print(f"Speedup Custom vs Naive  : {t_naive / t_custom:.2f}x")
+    print(f"Speedup Custom vs OpenCV : {t_opencv / t_custom:.2f}x")
     print()
 
-'''
+
 # ============================
 # 2. PROFILING CON cProfile
 # ============================
 def run_cprofile():
     
-    print("=== cProfile: Custom gaussian_filter_grayscale ===")
+    print("=== cProfile: median_filter_grayscale ===")
     import io
     import pstats
     
+    window_size = 9
+    
+    # Warm-up para compilar JIT (si usa numba)
+    _ = median_filter_grayscale(img, window_size=window_size)
+    
     profiler = cProfile.Profile()
     profiler.enable()
-    gaussian_filter_grayscale(img, sigma=2.5)
+    median_filter_grayscale(img, window_size=window_size)
     profiler.disable()
     
-    # Guardar en archivo
-    profiler.dump_stats("profile_output.prof")
+    # Guardar en archivo binario
+    profiler.dump_stats("profile_median_output.prof")
     
-    # Mostrar en terminal (Top 10 funciones)
+    # Mostrar en terminal (Top 100 funciones)
     s = io.StringIO()
     stats = pstats.Stats(profiler, stream=s)
     stats.sort_stats('cumulative')
     stats.print_stats(100)
     
-    with open("profile_output.txt", "w") as f:
+    with open("profile_median_output.txt", "w") as f:
         f.write(s.getvalue())
     
     print("Resultados guardados en:")
-    print("  - profile_output.prof (binario)")
-    print("  - profile_output.txt (texto legible)")
+    print("  - profile_median_output.prof (binario)")
+    print("  - profile_median_output.txt (texto legible)")
     print()
-'''
+
+
 # ============================
 # MAIN
 # ============================
 if __name__ == "__main__":
     run_timeit()
-    # run_cprofile()
+    run_cprofile()

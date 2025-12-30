@@ -4,6 +4,7 @@ import numpy as np
 import cv2 as cv
 import cProfile
 from scipy.ndimage import convolve1d
+from pixelops.filtering.spatial.gaussian import gaussian_filter_grayscale
 
 def convolve_separable_scipy(
     img: np.ndarray,
@@ -71,7 +72,7 @@ img = generate_test_image((512, 512))
 # 1. BENCHMARK CON TIMEIT
 # ============================
 def run_timeit():
-    n_runs = 1
+    n_runs = 100
 
     # warm-up
     kernel = create_gaussian_kernel(sigma=2.5)
@@ -83,7 +84,9 @@ def run_timeit():
         'img': img,
         'kernel': kernel,
         'convolve_separable': convolve_separable,
-        'convolve_separable_scipy': convolve_separable_scipy
+        'convolve_separable_scipy': convolve_separable_scipy,
+        'gaussian_filter_grayscale': gaussian_filter_grayscale,
+        'cv': cv,
     }
 
     t_custom = timeit.timeit(
@@ -103,6 +106,31 @@ def run_timeit():
     print(f" Numba Convolve average   : {t_custom / n_runs:.6f} s")
     print(f" SciPy Convolve average   : {t_scipy / n_runs:.6f} s")
     print()
+#-----------------
+    print("=== TIMEIT BENCHMARK GAUSSIAN FILTER ===")
+    # warm-up
+    gaussian_filter_grayscale(img, sigma=2.5)
+    cv.GaussianBlur(img, ksize=(0,0), sigmaX=2.5)
+
+    t_custom_gauss = timeit.timeit(
+        stmt="gaussian_filter_grayscale(img, sigma=2.5)",
+        globals=globals_dict,
+        number=n_runs
+    )
+
+    t_cv_gauss = timeit.timeit(
+        stmt="cv.GaussianBlur(img, ksize=(0,0), sigmaX=2.5)",
+        globals=globals_dict,
+        number=n_runs
+    )
+
+    print("=== STEADY STATE BENCHMARK GAUSSIAN FILTER ===")
+    print(f"Runs                       : {n_runs}")
+    print(f" Custom gaussian_filter average    : {t_custom_gauss / n_runs:.6f} s")
+    print(f" OpenCV GaussianBlur average       : {t_cv_gauss / n_runs:.6f} s")
+    print (f"Speedup (Custom vs OpenCV): {t_custom_gauss / t_cv_gauss:.2f}x")
+    print()
+
 
 
 # ============================

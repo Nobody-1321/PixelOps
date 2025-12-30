@@ -1,5 +1,4 @@
 import numpy as np
-from scipy.ndimage import convolve1d
 from numba import njit, prange
 
 #----------------------------------------------
@@ -8,92 +7,126 @@ from numba import njit, prange
 #
 #----------------------------------------------
 
-@njit(parallel=True, fastmath=True, cache=True)
-def convolve_separable_numba(
-    img_padded: np.ndarray,
-    kernel_h: np.ndarray,
-    kernel_v: np.ndarray,
-    pad: int
-) -> np.ndarray:
-    """
-    Perform separable convolution on a padded grayscale image.
+@njit(inline="always")
+def reflect(idx: int, size: int) -> int:
+    if idx < 0:
+        return -idx - 1
+    if idx >= size:
+        return 2 * size - idx - 1
+    return idx
 
-    Parameters
-    ----------
-    img_padded : np.ndarray
-        Padded input image of shape (H + 2*pad, W + 2*pad).
-        Must be float32 or float64.
-
-    kernel_h : np.ndarray
-        1D horizontal convolution kernel.
-
-    kernel_v : np.ndarray
-        1D vertical convolution kernel.
-
-    pad : int
-        Padding size (half kernel width).
-
-    Returns
-    -------
-    np.ndarray
-        Convolved image of shape (H, W), without padding.
-    """
-
-    H = img_padded.shape[0] - 2 * pad
-    W = img_padded.shape[1] - 2 * pad
-    ksize = kernel_h.shape[0]
-
-    tmp = np.zeros((H + 2 * pad, W + 2 * pad), dtype=img_padded.dtype)
-    out = np.zeros((H, W), dtype=img_padded.dtype)
-
-    # Horizontal convolution
-    for y in prange(H):
-        yy = y + pad
-        for x in range(W):
-            xx = x + pad
-            acc = 0.0
-            for i in range(ksize):
-                acc += kernel_h[i] * img_padded[yy, xx + i - pad]
-            tmp[yy, xx] = acc
-
-    # Vertical convolution
-    for y in prange(H):
-        yy = y + pad
-        for x in range(W):
-            xx = x + pad
-            acc = 0.0
-            for i in range(ksize):
-                acc += kernel_v[i] * tmp[yy + i - pad, xx]
-            out[y, x] = acc
-
-    return out
-
+@njit(parallel=True, fastmath=True)
 def convolve_separable(
-    img: np.ndarray,
+    src: np.ndarray,
     kernel_h: np.ndarray,
     kernel_v: np.ndarray
 ) -> np.ndarray:
     """
-    Apply separable convolution using a Numba-optimized backend.
+    Separable convolution returning a new array.
+    Uses kernel_h for horizontal pass, kernel_v for vertical pass.
+    """
+    H, W = src.shape
+    k_h = kernel_h.shape[0]
+    k_v = kernel_v.shape[0]
+    r_h = k_h // 2
+    r_v = k_v // 2
+
+    tmp = np.empty_like(src)
+    dst = np.empty_like(src)
+
+    # Horizontal pass
+    for y in prange(H):
+        for x in range(W):
+            acc = 0.0
+            for i in range(k_h):
+                xx = reflect(x + i - r_h, W)
+                acc += kernel_h[i] * src[y, xx]
+            tmp[y, x] = acc
+
+    # Vertical pass
+    for y in prange(H):
+        for x in range(W):
+            acc = 0.0
+            for i in range(k_v):
+                yy = reflect(y + i - r_v, H)
+                acc += kernel_v[i] * tmp[yy, x]
+            dst[y, x] = acc
+
+    return dst
+
+@njit(parallel=True, fastmath=True)
+def convolve_separable_inplace(
+    src: np.ndarray,
+    kernel: np.ndarray,
+    dst: np.ndarray
+) -> None:
+    """
+    Separable convolution writing result into pre-allocated dst array.
+    Uses the same kernel for both horizontal and vertical passes.
+    """
+    H, W = src.shape
+    k = kernel.shape[0]
+    r = k // 2
+
+    tmp = np.empty_like(src)
+
+    # Horizontal pass
+    for y in prange(H):
+        for x in range(W):
+            acc = 0.0
+            for i in range(k):
+                xx = reflect(x + i - r, W)
+                acc += kernel[i] * src[y, xx]
+            tmp[y, x] = acc
+
+    # Vertical pass
+    for y in prange(H):
+        for x in range(W):
+            acc = 0.0
+            for i in range(k):
+                yy = reflect(y + i - r, H)
+                acc += kernel[i] * tmp[yy, x]
+            dst[y, x] = acc
+
+@njit(parallel=True, fastmath=True, cache=True)
+def convolve_horizontal_1d(
+    img_padded: np.ndarray,
+    kernel: np.ndarray,
+    pad: int
+) -> np.ndarray:
+    """
+    Apply 1D horizontal convolution to a padded image.
 
     Parameters
     ----------
-    img : np.ndarray
-        Input grayscale image of shape (H, W).
+    img_padded : np.ndarray
+        Padded image of shape (H_pad, W_pad).
 
-    kernel_h : np.ndarray
-        Horizontal 1D kernel.
+    kernel : np.ndarray
+        1D convolution kernel.
 
-    kernel_v : np.ndarray
-        Vertical 1D kernel.
+    pad : int
+        Half kernel size.
 
     Returns
     -------
     np.ndarray
-        Convolved image of shape (H, W).
+        Horizontally convolved image (same shape as img_padded).
     """
 
-    pad = kernel_h.shape[0] // 2
-    img_padded = np.pad(img, pad, mode="reflect")
+    H_pad, W_pad = img_padded.shape
+    ksize = kernel.shape[0]
 
-    return convolve_separable_numba(img_padded, kernel_h, kernel_v, pad)
+    tmp = np.zeros_like(img_padded)
+
+    for y in prange(H_pad):
+        for x in range(W_pad):
+            acc = 0.0
+            for i in range(ksize):
+                xx = x + i - pad
+                if 0 <= xx < W_pad:
+                    acc += kernel[i] * img_padded[y, xx]
+            tmp[y, x] = acc
+
+    return tmp
+

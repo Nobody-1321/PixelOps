@@ -1,6 +1,16 @@
 import numpy as np
 from ..utils import convolve_separable
 from ..kernels import create_gaussian_kernel
+import cv2
+
+def gaussian_filter_core(img: np.ndarray, sigma: float) -> np.ndarray:
+    """
+    Core Gaussian filter (float-only).
+    No normalization, no clipping, no dtype conversion.
+    """
+
+    gauss_kernel = create_gaussian_kernel(sigma)
+    return convolve_separable(img, gauss_kernel, gauss_kernel)
 
 def gaussian_filter_grayscale(img: np.ndarray, sigma: float) -> np.ndarray:
     """
@@ -88,3 +98,59 @@ def gaussian_filter_bgr(img: np.ndarray, sigma: float) -> np.ndarray:
         )
 
     return np.clip(out * 255.0, 0, 255).astype(np.uint8)
+
+def gaussian_filter_lab_luminance(img: np.ndarray, sigma: float) -> np.ndarray:
+    """
+    Apply Gaussian blur to the luminance channel only while preserving chrominance.
+    
+    This function converts the input image to LAB color space, applies Gaussian 
+    filtering to the L (luminance) channel, and converts back to BGR while keeping 
+    the A and B (chrominance) channels unchanged. This approach preserves color 
+    information while smoothing only the brightness component.
+    
+    Parameters
+    ----------
+    img : np.ndarray
+        Input image in BGR color space.
+    sigma : float
+        Standard deviation for the Gaussian kernel. If sigma <= 0, returns a copy 
+        of the original image unchanged.
+    
+    Returns
+    -------
+    np.ndarray
+        Filtered image in BGR color space with Gaussian blur applied only to the 
+        luminance channel.
+    
+    Notes
+    -----
+    - OpenCV's LAB color space uses L in range [0, 255]
+    - Requires helper functions: create_gaussian_kernel() and convolve_separable()
+    """
+
+    if sigma <= 0:
+        return img.copy()
+
+    # Convert to LAB (OpenCV uses L in [0,255])
+    lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB).astype(np.float32)
+
+    L, A, B = cv2.split(lab)
+
+    # Normalize luminance to [0, 1]
+    L /= 255.0
+
+    # Gaussian blur on luminance only
+    gauss_kernel = create_gaussian_kernel(sigma)
+    L_blur = convolve_separable(L, gauss_kernel, gauss_kernel)
+
+    # Restore range
+    L_blur = np.clip(L_blur * 255.0, 0, 255)
+
+    # Merge back without modifying chroma
+    lab_blur = cv2.merge([
+        L_blur.astype(np.uint8),
+        A.astype(np.uint8),
+        B.astype(np.uint8)
+    ])
+
+    return cv2.cvtColor(lab_blur, cv2.COLOR_LAB2BGR)
