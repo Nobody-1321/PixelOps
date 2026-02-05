@@ -20,3 +20,7 @@ src/*.png
 /pixelops/edges/__pycache__/
 /pixelops/visualization/__pycache__/
 /src/pixelops.egg-info
+/data/img/*NO.*
+examples/temp/
+examples/my_tests/
+examples/WIP/

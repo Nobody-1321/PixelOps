@@ -129,4 +129,3 @@ def convolve_horizontal_1d(
             tmp[y, x] = acc
 
     return tmp
-

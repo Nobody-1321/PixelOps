@@ -1,5 +1,6 @@
 import numpy as np
 from numba import njit, prange
+from ..utils import reflect
 
 @njit(cache=True)
 def median_from_histogram(hist: np.ndarray, total: int) -> int:
@@ -41,23 +42,21 @@ def median_from_histogram(hist: np.ndarray, total: int) -> int:
     return 255
 
 @njit(parallel=True, fastmath=True, cache=True)
-def median_filter_grayscale_numba(
-    padded: np.ndarray,
+def median_filter_core(
+    img: np.ndarray,
     window_size: int
 ) -> np.ndarray:
     """
-    Apply a median filter to a padded grayscale image using a
-    histogram sliding-window approach.
+    Core median filter using histogram sliding-window with reflection.
 
-    The function processes each row independently and computes
-    the median value for each pixel by maintaining and updating
-    a local histogram as the window slides horizontally.
+    Applies a median filter to a grayscale image using a histogram-based
+    approach. Uses reflection at boundaries to avoid memory allocation
+    for padding.
 
     Parameters
     ----------
-    padded : np.ndarray
-        Padded grayscale image of shape (H + 2*pad, W + 2*pad)
-        and dtype uint8. Padding must already be applied.
+    img : np.ndarray
+        Input grayscale image of shape (H, W) and dtype uint8.
 
     window_size : int
         Size of the square median window. Must be an odd integer.
@@ -69,15 +68,14 @@ def median_filter_grayscale_numba(
 
     Notes
     -----
+    - Uses reflect boundary condition (no padding allocation).
     - The histogram has 256 bins, assuming uint8 pixel values.
     - Horizontal sliding avoids recomputing the histogram from scratch.
     - Rows are parallelized using Numba's `prange`.
-    - The algorithm runs in O(H * W * (window_size + 256)) time.
     """
 
+    H, W = img.shape
     pad = window_size // 2
-    H = padded.shape[0] - 2 * pad
-    W = padded.shape[1] - 2 * pad
     out = np.zeros((H, W), dtype=np.uint8)
 
     for y in prange(H):
@@ -85,32 +83,35 @@ def median_filter_grayscale_numba(
 
         # Initialize histogram for the first window in the row
         for dy in range(window_size):
+            yy = reflect(y + dy - pad, H)
             for dx in range(window_size):
-                val = padded[y + dy, dx]
+                xx = reflect(dx - pad, W)
+                val = img[yy, xx]
                 hist[val] += 1
 
-        out[y, 0] = median_from_histogram(
-            hist, window_size * window_size
-        )
+        out[y, 0] = median_from_histogram(hist, window_size * window_size)
 
         # Slide the window horizontally
         for x in range(1, W):
             # Remove leftmost column
             for dy in range(window_size):
-                old_val = padded[y + dy, x - 1]
+                yy = reflect(y + dy - pad, H)
+                xx_old = reflect(x - 1 - pad, W)
+                old_val = img[yy, xx_old]
                 hist[old_val] -= 1
 
             # Add rightmost column
             for dy in range(window_size):
-                new_val = padded[y + dy, x + window_size - 1]
+                yy = reflect(y + dy - pad, H)
+                xx_new = reflect(x + pad, W)
+                new_val = img[yy, xx_new]
                 hist[new_val] += 1
 
-            out[y, x] = median_from_histogram(
-                hist, window_size * window_size
-            )
+            out[y, x] = median_from_histogram(hist, window_size * window_size)
 
     return out
 
+'''
 def median_filter_grayscale(
     image: np.ndarray,
     window_size: int
@@ -119,9 +120,9 @@ def median_filter_grayscale(
     Apply a median filter to a grayscale image using a fast
     histogram-based algorithm accelerated with Numba.
 
-    This function acts as a high-level wrapper that performs
-    boundary padding and delegates the core computation to a
-    Numba-optimized backend.
+    This function acts as a high-level wrapper that validates
+    input and delegates the core computation to a Numba-optimized
+    backend using reflection at boundaries (no padding allocation).
 
     Parameters
     ----------
@@ -141,10 +142,11 @@ def median_filter_grayscale(
     ------
     ValueError
         If `window_size` is not an odd integer.
+        If `image` is not a 2D array.
 
     Notes
     -----
-    - Padding is performed using edge replication.
+    - Uses reflect boundary condition (no extra memory for padding).
     - This implementation is significantly faster than naive
       sort-based median filters, especially for larger windows.
     - Suitable for real-time or large-scale image processing tasks.
@@ -156,10 +158,7 @@ def median_filter_grayscale(
     if image.ndim != 2:
         raise ValueError("Input image must be grayscale (2D array).")
 
-    pad = window_size // 2
-    padded = np.pad(image, pad, mode="edge")
-
-    return median_filter_grayscale_numba(padded, window_size)
+    return median_filter_core(image, window_size)
 
 def median_filter_bgr(
     image: np.ndarray,
@@ -197,7 +196,7 @@ def median_filter_bgr(
     - Each channel is processed independently using the same window size.
     - The implementation relies on a histogram sliding-window approach,
       which is significantly faster than naive median filtering.
-    - Padding is performed using edge replication.
+    - Uses reflect boundary condition (no extra memory for padding).
     """
 
     if window_size % 2 == 0:
@@ -206,13 +205,67 @@ def median_filter_bgr(
     if image.ndim != 3 or image.shape[2] != 3:
         raise ValueError("Input image must be BGR (3D array with 3 channels).")
 
-    pad = window_size // 2
     out = np.empty_like(image, dtype=np.uint8)
 
     for c in range(3):
-        padded = np.pad(image[:, :, c], pad, mode="edge")
-        out[:, :, c] = median_filter_grayscale_numba(
-            padded, window_size
-        )
+        out[:, :, c] = median_filter_core(image[:, :, c], window_size)
 
     return out
+'''
+
+def median_filter(
+    image: np.ndarray,
+    window_size: int
+) -> np.ndarray:
+    """
+    Apply a median filter to a grayscale or multi-channel image using
+    a fast histogram-based algorithm accelerated with Numba.
+
+    The filter is applied independently per channel when the input
+    image has multiple channels.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Input image of shape (H, W) or (H, W, C), dtype uint8.
+
+    window_size : int
+        Size of the square median window. Must be an odd integer.
+
+    Returns
+    -------
+    np.ndarray
+        Median-filtered image with the same shape and dtype as input.
+
+    Raises
+    ------
+    ValueError
+        If window_size is not odd.
+        If image has unsupported dimensions.
+    """
+
+    if window_size <= 0 or window_size % 2 == 0:
+        raise ValueError("Window size must be a positive odd integer.")
+
+    if image.dtype != np.uint8:
+        raise ValueError("Input image must be uint8.")
+
+    # Grayscale
+    if image.ndim == 2:
+        return median_filter_core(image, window_size)
+
+    # Multi-channel (e.g. BGR, RGB, etc.)
+    if image.ndim == 3:
+        h, w, c = image.shape
+        out = np.empty_like(image)
+
+        for ch in range(c):
+            out[:, :, ch] = median_filter_core(
+                image[:, :, ch], window_size
+            )
+
+        return out
+
+    raise ValueError(
+        "Input image must be 2D (grayscale) or 3D (multi-channel)."
+    )

@@ -4,7 +4,7 @@ from ..kernels import create_gaussian_derivative_kernel, create_gaussian_second_
 from ..utils import convolve_separable
 from  .gaussian import create_gaussian_kernel
 
-def compute_gaussian_image_gradient_float(
+def gaussian_gradient_core(
     img: np.ndarray,
     sigma_s: float,
     sigma_d: float
@@ -61,7 +61,7 @@ def compute_gaussian_image_gradient_float(
 
     return Gx, Gy, Gmag, Gphase
 
-def compute_gaussian_image_gradient_vis(
+def gaussian_gradient(
     img: np.ndarray,
     sigma_s: float,
     sigma_d: float
@@ -104,7 +104,7 @@ def compute_gaussian_image_gradient_vis(
     - Not suitable for numerical analysis.
     """
 
-    Gx, Gy, Gmag, Gphase = compute_gaussian_image_gradient_float(
+    Gx, Gy, Gmag, Gphase = gaussian_gradient_core(
         img, sigma_s, sigma_d
     )
 
@@ -120,7 +120,7 @@ def compute_gaussian_image_gradient_vis(
         Gphase.astype(np.uint8),
     )
 
-def compute_sobel_image_gradient_float(
+def sobel_gradient_core(
     img: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
@@ -180,7 +180,7 @@ def compute_sobel_image_gradient_float(
 
     return Gx, Gy, Gmag, Gphase
 
-def compute_sobel_image_gradient_vis(
+def sobel_gradient(
     img: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
@@ -207,7 +207,7 @@ def compute_sobel_image_gradient_vis(
         Normalized gradient phase (uint8).
     """
 
-    Gx, Gy, Gmag, Gphase = compute_sobel_image_gradient_float(img)
+    Gx, Gy, Gmag, Gphase = sobel_gradient_core(img)
 
     Gx = cv.normalize(Gx, None, 0, 255, cv.NORM_MINMAX)
     Gy = cv.normalize(Gy, None, 0, 255, cv.NORM_MINMAX)
@@ -221,7 +221,7 @@ def compute_sobel_image_gradient_vis(
         Gphase.astype(np.uint8),
     )
 
-def compute_log_image_float(
+def log_gradient_core(
     img: np.ndarray,
     sigma_s: float,
     sigma_d: float
@@ -262,7 +262,7 @@ def compute_log_image_float(
 
     return Gxx + Gyy
 
-def compute_log_image_vis(
+def log_gradient(
     img: np.ndarray,
     sigma_s: float,
     sigma_d: float
@@ -288,7 +288,7 @@ def compute_log_image_vis(
         Normalized LoG response (uint8).
     """
 
-    log = compute_log_image_float(img, sigma_s, sigma_d)
+    log = log_gradient_core(img, sigma_s, sigma_d)
     log = cv.normalize(log, None, 0, 255, cv.NORM_MINMAX)
 
     return log.astype(np.uint8)

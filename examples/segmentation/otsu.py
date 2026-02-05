@@ -1,9 +1,10 @@
 import pixelops as pix
 import cv2 as cv
+from pixelops.segmentation.thresholding import otsu_threshold
 
 img = pix.open_image("./data/img/uvas.jpg", mode="gray")
 
-threshold = pix.otsu_threshold(img)
+threshold = otsu_threshold(img)
 
 print(f"Otsu's optimal threshold: {threshold}")
 

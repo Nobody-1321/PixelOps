@@ -6,7 +6,6 @@ from ..kernels import create_gaussian_kernel_radius
 import numpy as np
 from scipy.special import comb
 from numba import njit, prange
-from concurrent.futures import ThreadPoolExecutor
 
 def binomial_coeffs(n: int, dtype=np.float32) -> np.ndarray:
     coeffs = np.empty(n + 1, dtype=dtype)
@@ -111,16 +110,9 @@ def bilateral_filter_bgr(
     gauss_kernel = create_gaussian_kernel_radius(ss)
 
     out = np.empty_like(img_f)
-    
-    def process_channel(c):
+
+    for c in range(3):
         channel = img_f[:, :, c].copy()
-        return bilateral_filter_core(channel, binom, gauss_kernel, n_iter, sr)
-    
-    # Procesar canales en paralelo
-    with ThreadPoolExecutor(max_workers=3) as executor:
-        results = list(executor.map(process_channel, range(3)))
-    
-    for c, result in enumerate(results):
-        out[:, :, c] = result
+        out[:, :, c] = bilateral_filter_core(channel, binom, gauss_kernel, n_iter, sr)
 
     return np.clip(out * 255.0, 0, 255).astype(np.uint8)
