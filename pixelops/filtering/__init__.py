@@ -1,16 +1,12 @@
 from .spatial.gaussian import (
-    gaussian_filter_grayscale,
-    create_gaussian_kernel,
-    gaussian_filter_bgr,
-    gaussian_filter_lab_luminance,
-    gaussian_filter_core,
+    gaussian_filter
     )
 
 from .utils import (
     convolve_separable,
 )
 
-from .spatial.gradiend import (
+from .spatial.gradient import (
     gaussian_gradient_core,
     gaussian_gradient,
     sobel_gradient_core,
@@ -24,32 +20,28 @@ from .spatial.median import (
 )
 
 from .spatial.bilateral import (
-    bilateral_filter_grayscale,
+    bilateral_filter,
     bilateral_filter_core,
-    bilateral_filter_bgr,
     )
 
 from .spatial.mean_shift import (
-    mean_shift_filter_grayscale,
-    mean_shift_filter_bgr
+    mean_shift_filter,
+    mean_shift_filter_core
 )
 
 from .spatial.anisotropic_diffusion import (
     anisotropic_diffusion_core,
-    anisotropic_diffusion_grayscale,
-    anisotropic_diffusion_bgr,
+    anisotropic_diffusion,
 )
 
 from .spatial.isotropic_diffusion import (
-    isotropic_diffusion_grayscale,
-    isotropic_diffusion_bgr,
+    isotropic_diffusion,
+    isotropic_diffusion_core,
 )
 
 __all__ = [
-    'gaussian_filter_grayscale',
     'create_gaussian_kernel',
-    'gaussian_filter_bgr',
-    'gaussian_filter_core',
+    'gaussian_filter',
     'convolve_separable',
     'gaussian_gradient_core',
     'gaussian_gradient',
@@ -59,16 +51,13 @@ __all__ = [
     'log_gradient',
     'median_filter',
     'gaussian_filter_lab_luminance',
-    'bilateral_filter_grayscale',
+    'bilateral_filter',
     'convolve_horizontal_1d',
     'convolve_vertical_1d',
     'bilateral_filter_core',
-    'bilateral_filter_bgr',
-    'mean_shift_filter_grayscale',
-    'mean_shift_filter_bgr',
-    'anisotropic_diffusion_grayscale',
-    'anisotropic_diffusion_bgr',
+    'mean_shift_filter',
+    'mean_shift_filter_core',
+    'anisotropic_diffusion',
     'anisotropic_diffusion_core',
-    'isotropic_diffusion_grayscale',
-    'isotropic_diffusion_bgr',
-]
+    'isotropic_diffusion',
+    'isotropic_diffusion_core',]

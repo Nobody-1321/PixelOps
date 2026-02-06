@@ -1,7 +1,9 @@
 from .io import (
-    open_image
+    open_image,
+    normalize_to_uint8,
 )
 
 __all__ = [
-    "open_image"
+    "open_image",
+    "normalize_to_uint8",
 ]

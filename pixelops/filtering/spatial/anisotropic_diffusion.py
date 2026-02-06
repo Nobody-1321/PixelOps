@@ -127,6 +127,7 @@ def anisotropic_diffusion_core(
 
     return out
 
+'''
 def anisotropic_diffusion_grayscale(
     image: np.ndarray,
     n_iter: int = 10,
@@ -270,3 +271,86 @@ def anisotropic_diffusion_bgr(
         )
 
     return np.clip(out * 255.0, 0, 255).astype(np.uint8)
+'''
+
+def anisotropic_diffusion(
+    image: np.ndarray,
+    n_iter: int = 10,
+    kappa: float = 50.0,
+    gamma: float = 0.1,
+    option: int = 1
+) -> np.ndarray:
+    """
+    Apply Perona-Malik anisotropic diffusion to an image.
+
+    This filter smooths homogeneous regions while preserving edges.
+    It is suitable for denoising while maintaining important structures.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Input image of shape (H, W) or (H, W, C).
+        Any numeric dtype is accepted.
+
+    n_iter : int, optional
+        Number of diffusion iterations. Must be positive.
+
+    kappa : float, optional
+        Conductance parameter controlling edge sensitivity.
+        Smaller values preserve more edges.
+
+    gamma : float, optional
+        Integration constant. Must be in (0, 0.25] for stability.
+
+    option : int, optional
+        Diffusivity function:
+        - 1: Exponential
+        - 2: Inverse quadratic
+
+    Returns
+    -------
+    np.ndarray
+        Diffused image with same shape as input and dtype float32.
+
+    Notes
+    -----
+    - Implements Perona-Malik anisotropic diffusion.
+    - No normalization or clipping is applied.
+    - The meaning of `kappa` depends on the scale of `image`.
+    """
+
+    if n_iter <= 0:
+        raise ValueError("n_iter must be positive.")
+
+    if kappa <= 0:
+        raise ValueError("kappa must be positive.")
+
+    if not (0 < gamma <= 0.25):
+        raise ValueError("gamma must be in (0, 0.25].")
+
+    if option not in (1, 2):
+        raise ValueError("option must be 1 or 2.")
+
+    img_f = image.astype(np.float32)
+
+    if img_f.ndim == 2:
+        return anisotropic_diffusion_core(
+            img_f, n_iter, kappa, gamma, option
+        )
+
+    elif img_f.ndim == 3:
+        out = np.empty_like(img_f)
+
+        for c in range(img_f.shape[2]):
+            out[:, :, c] = anisotropic_diffusion_core(
+                img_f[:, :, c],
+                n_iter,
+                kappa,
+                gamma,
+                option
+            )
+
+        return out
+
+    else:
+        raise ValueError("Invalid image dimensions.")

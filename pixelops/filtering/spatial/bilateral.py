@@ -81,38 +81,58 @@ def bilateral_filter_core(
 
     return I
 
-def bilateral_filter_grayscale(
+def bilateral_filter(
     img: np.ndarray,
     ss: float,
     sr: float,
     n_iter: int = 1,
     n: int = 3
 ) -> np.ndarray:
+    """
+    Apply a bilateral filter to a grayscale or multi-channel image.
+
+    Notes
+    -----
+    - This function operates in floating point space.
+    - No normalization or quantization is applied.
+    - Boundary handling depends on the bilateral backend.
+    """
+
+    if ss <= 0:
+        raise ValueError("Spatial sigma (ss) must be positive.")
+
+    if sr <= 0:
+        raise ValueError("Range sigma (sr) must be positive.")
+
+    if n_iter <= 0:
+        raise ValueError("n_iter must be positive.")
+
+    if n <= 0 or n % 2 == 0:
+        raise ValueError("n must be a positive odd integer.")
+
     img_f = img.astype(np.float32) / 255.0
+
     binom = binomial_coeffs(n, img_f.dtype)
     gauss_kernel = create_gaussian_kernel_radius(ss)
 
-    out = bilateral_filter_core(
-        img_f, binom, gauss_kernel, n_iter, sr
-    )
+    # Grayscale
+    if img_f.ndim == 2:
+        out = bilateral_filter_core(
+            img_f, binom, gauss_kernel, n_iter, sr
+        )
 
-    return np.clip(out * 255.0, 0, 255).astype(np.uint8)
+    # Multi-channel
+    elif img_f.ndim == 3:
+        out = np.empty_like(img_f)
+        for c in range(img_f.shape[2]):
+            out[:, :, c] = bilateral_filter_core(
+                img_f[:, :, c],
+                binom,
+                gauss_kernel,
+                n_iter,
+                sr
+            )
+    else:
+        raise ValueError("Input image must be 2D or 3D.")
 
-def bilateral_filter_bgr(
-    img: np.ndarray,
-    ss: float,
-    sr: float,
-    n_iter: int = 1,
-    n: int = 3
-) -> np.ndarray:
-    img_f = img.astype(np.float32) / 255.0
-    binom = binomial_coeffs(n, img_f.dtype)
-    gauss_kernel = create_gaussian_kernel_radius(ss)
-
-    out = np.empty_like(img_f)
-
-    for c in range(3):
-        channel = img_f[:, :, c].copy()
-        out[:, :, c] = bilateral_filter_core(channel, binom, gauss_kernel, n_iter, sr)
-
-    return np.clip(out * 255.0, 0, 255).astype(np.uint8)
+    return out

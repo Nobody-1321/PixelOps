@@ -35,3 +35,8 @@ def open_image(path, mode="bgr"):
         raise IOError(f"Could not read image: {path}")
 
     return img
+
+def normalize_to_uint8(arr):
+    arr_norm = (arr - arr.min()) / (arr.max() - arr.min())  # Escala a [0, 1]
+    arr_scaled = arr_norm * 255                             # Escala a [0, 255]
+    return arr_scaled.astype(np.uint8)

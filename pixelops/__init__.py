@@ -13,9 +13,8 @@ from . import visualization
 from . import quantization
 
 # Solo las 5-10 funciones MÁS usadas
-from .core import open_image
+from .core import open_image, normalize_to_uint8
 from .visualization import show_side_by_side, show_images
-from .filtering.spatial.gaussian import gaussian_filter_bgr, gaussian_filter_grayscale
 
 __all__ = [
     
@@ -33,4 +32,5 @@ __all__ = [
     'open_image',
     'show_side_by_side',
     'show_images',
+    'normalize_to_uint8',
 ]

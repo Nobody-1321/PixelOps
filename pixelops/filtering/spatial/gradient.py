@@ -61,16 +61,13 @@ def gaussian_gradient_core(
 
     return Gx, Gy, Gmag, Gphase
 
-def gaussian_gradient(
+def log_gradient_core(
     img: np.ndarray,
     sigma_s: float,
     sigma_d: float
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> np.ndarray:
     """
-    Compute the image gradient using Gaussian derivatives and
-    return normalized uint8 images for visualization.
-
-    This function is intended for display purposes only.
+    Compute the Laplacian of Gaussian (LoG) using separable convolution.
 
     Parameters
     ----------
@@ -81,44 +78,29 @@ def gaussian_gradient(
         Standard deviation of the Gaussian smoothing kernel.
 
     sigma_d : float
-        Standard deviation of the Gaussian derivative kernel.
+        Standard deviation of the second-order Gaussian derivative.
 
     Returns
     -------
-    Gx : np.ndarray
-        Normalized gradient in X direction (uint8).
-
-    Gy : np.ndarray
-        Normalized gradient in Y direction (uint8).
-
-    Gmag : np.ndarray
-        Normalized gradient magnitude (uint8).
-
-    Gphase : np.ndarray
-        Normalized gradient phase (uint8).
+    np.ndarray
+        Laplacian of Gaussian response (float32).
 
     Notes
     -----
-    - Internally calls `compute_gaussian_image_gradient_float`.
-    - Normalization is performed independently for each output.
-    - Not suitable for numerical analysis.
+    - The LoG is computed as:
+        LoG = d²G/dx² * I + d²G/dy² * I
+    - No normalization or clipping is applied.
     """
 
-    Gx, Gy, Gmag, Gphase = gaussian_gradient_core(
-        img, sigma_s, sigma_d
-    )
+    img_f = img.astype(np.float32)
 
-    Gx = cv.normalize(Gx, None, 0, 255, cv.NORM_MINMAX)
-    Gy = cv.normalize(Gy, None, 0, 255, cv.NORM_MINMAX)
-    Gmag = cv.normalize(Gmag, None, 0, 255, cv.NORM_MINMAX)
-    Gphase = cv.normalize(Gphase, None, 0, 255, cv.NORM_MINMAX)
+    gauss = create_gaussian_kernel(sigma_s)
+    gauss_2nd = create_gaussian_second_derivative_kernel(sigma_d)
 
-    return (
-        Gx.astype(np.uint8),
-        Gy.astype(np.uint8),
-        Gmag.astype(np.uint8),
-        Gphase.astype(np.uint8),
-    )
+    Gxx = convolve_separable(img_f, gauss_2nd, gauss)
+    Gyy = convolve_separable(img_f, gauss, gauss_2nd)
+
+    return Gxx + Gyy
 
 def sobel_gradient_core(
     img: np.ndarray
@@ -180,12 +162,65 @@ def sobel_gradient_core(
 
     return Gx, Gy, Gmag, Gphase
 
+def gaussian_gradient(
+    img: np.ndarray,
+    sigma_s: float,
+    sigma_d: float
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Compute image gradients using Gaussian derivatives.
+
+    This function computes the first-order image derivatives
+    smoothed by a Gaussian kernel and returns all results in
+    floating point format.
+
+    Parameters
+    ----------
+    img : np.ndarray
+        Input grayscale image of shape (H, W).
+
+    sigma_s : float
+        Standard deviation of the Gaussian smoothing kernel.
+        Must be positive.
+
+    sigma_d : float
+        Standard deviation of the Gaussian derivative kernel.
+        Must be positive.
+
+    Returns
+    -------
+    Gx : np.ndarray
+        Gradient in X direction (float32).
+
+    Gy : np.ndarray
+        Gradient in Y direction (float32).
+
+    Gmag : np.ndarray
+        Gradient magnitude (float32).
+
+    Gphase : np.ndarray
+        Gradient phase in radians (float32).
+
+    Notes
+    -----
+    - No normalization or quantization is applied.
+    - Suitable for numerical analysis and advanced pipelines.
+    - Boundary handling depends on the convolution backend.
+    """
+
+    if sigma_s <= 0 or sigma_d <= 0:
+        raise ValueError("Sigma values must be positive.")
+
+    if img.ndim != 2:
+        raise ValueError("Input image must be grayscale (2D).")
+
+    return gaussian_gradient_core(img, sigma_s, sigma_d)
+
 def sobel_gradient(
     img: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
-    Compute Sobel image gradients and return normalized
-    uint8 images for visualization.
+    Compute Sobel image gradients.
 
     Parameters
     ----------
@@ -195,39 +230,38 @@ def sobel_gradient(
     Returns
     -------
     Gx : np.ndarray
-        Normalized gradient in X direction (uint8).
+        Gradient in X direction (float32).
 
     Gy : np.ndarray
-        Normalized gradient in Y direction (uint8).
+        Gradient in Y direction (float32).
 
     Gmag : np.ndarray
-        Normalized gradient magnitude (uint8).
+        Gradient magnitude (float32).
 
     Gphase : np.ndarray
-        Normalized gradient phase (uint8).
+        Gradient phase in radians (float32).
+
+    Notes
+    -----
+    - No normalization or quantization is applied.
+    - Intended for numerical processing, not visualization.
     """
 
-    Gx, Gy, Gmag, Gphase = sobel_gradient_core(img)
+    if img.ndim != 2:
+        raise ValueError("Input image must be grayscale (2D).")
 
-    Gx = cv.normalize(Gx, None, 0, 255, cv.NORM_MINMAX)
-    Gy = cv.normalize(Gy, None, 0, 255, cv.NORM_MINMAX)
-    Gmag = cv.normalize(Gmag, None, 0, 255, cv.NORM_MINMAX)
-    Gphase = cv.normalize(Gphase, None, 0, 255, cv.NORM_MINMAX)
+    return sobel_gradient_core(img)
 
-    return (
-        Gx.astype(np.uint8),
-        Gy.astype(np.uint8),
-        Gmag.astype(np.uint8),
-        Gphase.astype(np.uint8),
-    )
-
-def log_gradient_core(
+def log_gradient(
     img: np.ndarray,
     sigma_s: float,
     sigma_d: float
 ) -> np.ndarray:
     """
-    Compute the Laplacian of Gaussian (LoG) using separable convolution.
+    Compute the Laplacian of Gaussian (LoG).
+
+    The Laplacian of Gaussian highlights regions of rapid
+    intensity change and produces a signed response.
 
     Parameters
     ----------
@@ -236,59 +270,28 @@ def log_gradient_core(
 
     sigma_s : float
         Standard deviation of the Gaussian smoothing kernel.
-
-    sigma_d : float
-        Standard deviation of the second-order Gaussian derivative.
-
-    Returns
-    -------
-    np.ndarray
-        Laplacian of Gaussian response (float32).
-
-    Notes
-    -----
-    - The LoG is computed as:
-        LoG = d²G/dx² * I + d²G/dy² * I
-    - No normalization or clipping is applied.
-    """
-
-    img_f = img.astype(np.float32)
-
-    gauss = create_gaussian_kernel(sigma_s)
-    gauss_2nd = create_gaussian_second_derivative_kernel(sigma_d)
-
-    Gxx = convolve_separable(img_f, gauss_2nd, gauss)
-    Gyy = convolve_separable(img_f, gauss, gauss_2nd)
-
-    return Gxx + Gyy
-
-def log_gradient(
-    img: np.ndarray,
-    sigma_s: float,
-    sigma_d: float
-) -> np.ndarray:
-    """
-    Compute the Laplacian of Gaussian and return a normalized
-    uint8 image for visualization.
-
-    Parameters
-    ----------
-    img : np.ndarray
-        Input grayscale image.
-
-    sigma_s : float
-        Standard deviation of the Gaussian smoothing kernel.
+        Must be positive.
 
     sigma_d : float
         Standard deviation of the second derivative kernel.
+        Must be positive.
 
     Returns
     -------
     np.ndarray
-        Normalized LoG response (uint8).
+        Signed Laplacian of Gaussian response (float32).
+
+    Notes
+    -----
+    - No normalization or clipping is applied.
+    - Output contains both positive and negative values.
+    - Suitable for zero-crossing detection and blob detection.
     """
 
-    log = log_gradient_core(img, sigma_s, sigma_d)
-    log = cv.normalize(log, None, 0, 255, cv.NORM_MINMAX)
+    if sigma_s <= 0 or sigma_d <= 0:
+        raise ValueError("Sigma values must be positive.")
 
-    return log.astype(np.uint8)
+    if img.ndim != 2:
+        raise ValueError("Input image must be grayscale (2D).")
+
+    return log_gradient_core(img, sigma_s, sigma_d)

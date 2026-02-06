@@ -59,6 +59,73 @@ def isotropic_diffusion_core(
 
     return out
 
+def isotropic_diffusion(
+    image: np.ndarray,
+    n_iter: int = 10,
+    gamma: float = 0.25
+) -> np.ndarray:
+    """
+    Apply isotropic diffusion (heat equation) to an image.
+
+    This filter performs uniform smoothing equivalent to Gaussian blur.
+    Unlike anisotropic diffusion, it does NOT preserve edges.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Input image of shape (H, W) or (H, W, C).
+        Any numeric dtype is accepted.
+
+    n_iter : int, optional
+        Number of diffusion iterations. Must be positive.
+
+    gamma : float, optional
+        Integration constant. Must be in (0, 0.25] for stability.
+
+    Returns
+    -------
+    np.ndarray
+        Diffused image with same shape as input and dtype float32.
+
+    Notes
+    -----
+    - Equivalent to solving the heat equation:
+        ∂I/∂t = ∇²I
+    - Effective Gaussian sigma is approximately:
+        σ ≈ √(2 * n_iter * gamma)
+    - No normalization or clipping is applied.
+    """
+
+    if n_iter <= 0:
+        raise ValueError("n_iter must be positive.")
+
+    if not (0 < gamma <= 0.25):
+        raise ValueError("gamma must be in (0, 0.25].")
+
+    if image.dtype == np.uint8:
+        img_f = image.astype(np.float32) / 255.0
+    else:
+        img_f = image.astype(np.float32)
+        
+    if img_f.ndim == 2:
+        return isotropic_diffusion_core(img_f, n_iter, gamma)
+
+    elif img_f.ndim == 3:
+        out = np.empty_like(img_f)
+
+        for c in range(img_f.shape[2]):
+            out[:, :, c] = isotropic_diffusion_core(
+                img_f[:, :, c],
+                n_iter,
+                gamma
+            )
+
+        return out
+
+    else:
+        raise ValueError("Invalid image dimensions.")
+
+'''
 def isotropic_diffusion_grayscale(
     image: np.ndarray,
     n_iter: int = 10,
@@ -173,3 +240,4 @@ def isotropic_diffusion_bgr(
         )
 
     return np.clip(out * 255.0, 0, 255).astype(np.uint8)
+'''

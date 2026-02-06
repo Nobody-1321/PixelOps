@@ -124,7 +124,7 @@ def create_gaussian_derivative_kernel(sigma: float) -> np.ndarray:
 
     for i in range(size):
         x = i - half_width
-        value = -x * np.exp(-(x * x) / (2.0 * sigma * sigma))
+        value = x * np.exp(-(x * x) / (2.0 * sigma * sigma))
         kernel[i] = value
         norm += abs(x * value)
 
@@ -179,4 +179,5 @@ def create_gaussian_second_derivative_kernel(sigma: float) -> np.ndarray:
         norm += abs(value)
 
     kernel /= norm
+    kernel -= kernel.sum() / size  # Ensure zero mean
     return kernel

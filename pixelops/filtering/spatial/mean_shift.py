@@ -113,6 +113,89 @@ def mean_shift_filter_core(
 
     return output
 
+def mean_shift_filter(
+    image: np.ndarray,
+    hs: int,
+    hr: float,
+    max_iter: int = 5,
+    eps: float = 1.0
+) -> np.ndarray:
+    """
+    Apply mean shift filtering to a grayscale or multi-channel image.
+
+    Mean shift is an edge-preserving filter that iteratively shifts
+    each pixel toward the local mode of the joint spatial-range
+    distribution.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Input image of shape (H, W) or (H, W, C).
+        Any numeric dtype is accepted; internally converted to float32.
+
+    hs : int
+        Spatial bandwidth (kernel radius in pixels).
+        Must be positive.
+
+    hr : float
+        Range bandwidth (intensity similarity threshold).
+        Must be positive.
+
+    max_iter : int, optional
+        Maximum number of mean shift iterations per pixel.
+        Must be positive. Default is 5.
+
+    eps : float, optional
+        Convergence threshold. Iteration stops when the shift
+        magnitude is below this value. Default is 1.0.
+
+    Returns
+    -------
+    np.ndarray
+        Mean-shift filtered image (float32) with the same shape
+        as the input.
+
+    Notes
+    -----
+    - No normalization, clipping, or quantization is applied.
+    - Each channel is processed independently for multi-channel inputs.
+    - Suitable for advanced image processing pipelines.
+    """
+
+    if hs <= 0:
+        raise ValueError("Spatial bandwidth (hs) must be positive.")
+
+    if hr <= 0:
+        raise ValueError("Range bandwidth (hr) must be positive.")
+
+    if max_iter <= 0:
+        raise ValueError("max_iter must be positive.")
+
+    if eps <= 0:
+        raise ValueError("eps must be positive.")
+
+    img_f = image.astype(np.float32)
+
+    # Grayscale
+    if img_f.ndim == 2:
+        out = mean_shift_filter_core(
+            img_f, hs, hr, max_iter, eps
+        )
+
+    # Multi-channel
+    elif img_f.ndim == 3:
+        out = np.empty_like(img_f)
+        for c in range(img_f.shape[2]):
+            out[:, :, c] = mean_shift_filter_core(
+                img_f[:, :, c],
+                hs, hr, max_iter, eps
+            )
+    else:
+        raise ValueError("Input image must be 2D or 3D.")
+
+    return out
+
+'''
 def mean_shift_filter_grayscale(
     image: np.ndarray,
     hs: int,
@@ -241,3 +324,4 @@ def mean_shift_filter_bgr(
         )
 
     return out
+'''
