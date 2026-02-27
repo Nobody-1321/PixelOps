@@ -11,6 +11,7 @@ from . import segmentation
 from . import enhancement
 from . import visualization
 from . import quantization
+from . import color
 
 # Solo las 5-10 funciones MÁS usadas
 from .core import open_image, normalize_to_uint8
@@ -27,7 +28,7 @@ __all__ = [
     'enhancement', 
     'visualization',
     'quantization',
-    
+    'color',
     # Solo funciones críticas
     'open_image',
     'show_side_by_side',

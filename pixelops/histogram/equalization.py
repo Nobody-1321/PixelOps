@@ -47,66 +47,57 @@ def histogram_equalization_channel(channel):
     if cdf[-1] == 0:
         return channel.copy()
 
-    cdf_normalized = cdf / cdf[-1]
-    lut = (cdf_normalized * 255).astype(np.uint8)
+    #cdf_min = cdf[cdf > 0][0]  # First non-zero value in CDF
+    cdf_min = cdf[cdf > 0].min()  # First non-zero value in CDF
+    if cdf_min == cdf[-1]:
+        return channel.copy()
+    
+    cdf_normalized = (cdf - cdf_min) / (cdf[-1] - cdf_min)
+    lut = np.round(cdf_normalized * 255).astype(np.uint8)
 
     return lut[channel]
 
-def histogram_equalization_gray(gray):
+def histogram_equalization(image):
     """
-    Applies histogram equalization to a grayscale image.
+    Applies histogram equalization to a grayscale or BGR image.
 
-    Parameters
-    ----------
-    gray : np.ndarray
-        Grayscale image (H×W), dtype uint8.
-
-    Returns
-    -------
-    np.ndarray
-        Equalized grayscale image.
-    """
-    return histogram_equalization_channel(gray)
-
-def histogram_equalization_bgr(image):
-    """
-    Applies histogram equalization to a BGR image using the luminance channel.
-
-    The image is converted to YCrCb color space, histogram equalization
-    is applied to the Y (luminance) channel, and the image is converted
-    back to BGR.
+    For grayscale images, histogram equalization is applied directly.
+    For BGR images, the image is converted to YCrCb color space, histogram
+    equalization is applied to the Y (luminance) channel, and the image is
+    converted back to BGR.
 
     Parameters
     ----------
     image : np.ndarray
-        BGR image (H×W×3), dtype uint8.
+        Grayscale (H×W) or BGR (H×W×3) image, dtype uint8.
 
     Returns
     -------
     np.ndarray
-        Equalized BGR image.
+        Equalized image with the same shape and dtype as the input.
 
     Raises
     ------
     ValueError
-        If the input is not a BGR uint8 image.
+        If the input image has an unsupported shape or type.
     """
     if not isinstance(image, np.ndarray):
         raise TypeError("Input must be a numpy array.")
 
-    if image.ndim != 3 or image.shape[2] != 3:
-        raise ValueError("Expected a BGR image of shape (H, W, 3).")
+    if image.ndim == 2:
+        return histogram_equalization_channel(image)
 
-    if image.dtype != np.uint8:
-        raise ValueError("Expected image of type uint8.")
+    elif image.ndim == 3 and image.shape[2] == 3:
+        ycrcb = cv.cvtColor(image, cv.COLOR_BGR2YCrCb)
+        y, cr, cb = cv.split(ycrcb)
 
-    ycrcb = cv.cvtColor(image, cv.COLOR_BGR2YCrCb)
-    y, cr, cb = cv.split(ycrcb)
+        y_eq = histogram_equalization_channel(y)
 
-    y_eq = histogram_equalization_channel(y)
+        ycrcb_eq = cv.merge([y_eq, cr, cb])
+        return cv.cvtColor(ycrcb_eq, cv.COLOR_YCrCb2BGR)
 
-    ycrcb_eq = cv.merge([y_eq, cr, cb])
-    return cv.cvtColor(ycrcb_eq, cv.COLOR_YCrCb2BGR)
+    else:
+        raise ValueError("Unsupported image shape. Expected (H, W) or (H, W, 3).")
 
 #----------------------------------------------
 #        CLAHE IMPLEMENTATION
@@ -232,30 +223,30 @@ def apply_interpolation_numba(
 
     return out
 
-def clahe_grayscale(image, clip_limit=10, grid_size=(8, 8)):
+def clahe_core(
+    image: np.ndarray,
+    clip_limit: int,
+    grid_size: tuple[int, int]
+) -> np.ndarray:
     """
-    Apply Contrast Limited Adaptive Histogram Equalization (CLAHE)
-    to a grayscale image.
+    Apply CLAHE to a grayscale uint8 image.
 
-    Parameters
-    ----------
-    image : np.ndarray
-        Grayscale image (H×W), uint8.
-    clip_limit : int, optional
-        Histogram clip limit.
-    grid_size : tuple[int, int], optional
-        Number of blocks (rows, cols).
-
-    Returns
-    -------
-    np.ndarray
-        Contrast-enhanced grayscale image.
+    Notes
+    -----
+    - Expects uint8 input in [0, 255]
+    - Intended for contrast enhancement (visualization)
     """
     if image.ndim != 2:
-        raise ValueError("Expected a grayscale image (H×W).")
+        raise ValueError("Expected a grayscale image (H, W).")
 
-    h, w = image.shape
+    if image.dtype != np.uint8:
+        raise TypeError("CLAHE expects uint8 image.")
+
     n_rows, n_cols = grid_size
+    h, w = image.shape
+
+    if h < n_rows or w < n_cols:
+        raise ValueError("Grid size larger than image.")
 
     cell_h = h // n_rows
     cell_w = w // n_cols
@@ -263,7 +254,7 @@ def clahe_grayscale(image, clip_limit=10, grid_size=(8, 8)):
     mappings = compute_block_mappings(
         image, n_rows, n_cols, cell_h, cell_w, clip_limit
     )
-        
+
     return apply_interpolation_numba(
         image,
         np.array(mappings),
@@ -272,32 +263,42 @@ def clahe_grayscale(image, clip_limit=10, grid_size=(8, 8)):
         cell_h,
         cell_w
     )
-    
-def clahe_bgr(image, clip_limit=10, grid_size=(8, 8)):
+
+def clahe(
+    image: np.ndarray,
+    clip_limit: int = 10,
+    grid_size: tuple[int, int] = (8, 8)
+) -> np.ndarray:
     """
-    Apply CLAHE to a BGR image using the luminance channel.
+    Apply CLAHE to a grayscale or BGR image.
+
+    This function is intended for visualization and contrast enhancement.
 
     Parameters
     ----------
     image : np.ndarray
-        BGR image (H×W×3), uint8.
-    clip_limit : int, optional
-        Histogram clip limit.
-    grid_size : tuple[int, int], optional
-        Number of blocks (rows, cols).
+        Grayscale (H, W) or BGR (H, W, 3) uint8 image.
 
     Returns
     -------
     np.ndarray
-        Contrast-enhanced BGR image.
+        Contrast-enhanced image (uint8).
     """
-    if image.ndim != 3 or image.shape[2] != 3:
-        raise ValueError("Expected a BGR image (H×W×3).")
 
-    lab = cv.cvtColor(image, cv.COLOR_BGR2LAB)
-    l, a, b = cv.split(lab)
+    if image.dtype != np.uint8:
+        raise TypeError("CLAHE expects uint8 image.")
 
-    l_eq = clahe_grayscale(l, clip_limit, grid_size)
+    if image.ndim == 2:
+        return clahe_core(image, clip_limit, grid_size)
 
-    lab_eq = cv.merge((l_eq, a, b))
-    return cv.cvtColor(lab_eq, cv.COLOR_LAB2BGR)
+    elif image.ndim == 3 and image.shape[2] == 3:
+        lab = cv.cvtColor(image, cv.COLOR_BGR2LAB)
+        l, a, b = cv.split(lab)
+
+        l_eq = clahe_core(l, clip_limit, grid_size)
+
+        lab_eq = cv.merge((l_eq, a, b))
+        return cv.cvtColor(lab_eq, cv.COLOR_LAB2BGR)
+
+    else:
+        raise ValueError("Invalid image dimensions.")
