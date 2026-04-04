@@ -114,12 +114,29 @@ def bgr_to_lab_real(bgr: np.ndarray) -> np.ndarray:
 def lab_real_to_bgr(lab: np.ndarray) -> np.ndarray:
     """
     Convert a real-valued CIE Lab image to BGR uint8.
+
+    Parameters
+    ----------
+    lab : np.ndarray
+        Real-valued Lab image in float32 or float64:
+        - L* in [0, 100]
+        - a* in [-128, 127]
+        - b* in [-128, 127]
+
+    Returns
+    -------
+    np.ndarray
+        BGR image in uint8 format with shape (H, W, 3).
+
+    Notes
+    -----
+    - Values are clipped to valid Lab ranges before conversion.
+    - Converts back to OpenCV's uint8 Lab representation internally.
     """
     _validate_lab_real_image(lab, "lab")
 
     lab_cv = lab.astype(np.float32, copy=True)
 
-    # Clip a* y b* ANTES de sumar el offset
     lab_cv[..., 0] = np.clip(lab_cv[..., 0], 0.0, 100.0)
     lab_cv[..., 1] = np.clip(lab_cv[..., 1], -128.0, 127.0)
     lab_cv[..., 2] = np.clip(lab_cv[..., 2], -128.0, 127.0)
@@ -128,7 +145,6 @@ def lab_real_to_bgr(lab: np.ndarray) -> np.ndarray:
     lab_cv[..., 1] += 128.0
     lab_cv[..., 2] += 128.0
 
-    # Ahora sí, clip final para uint8
     lab_cv = np.clip(lab_cv, 0, 255).astype(np.uint8)
 
     return cv2.cvtColor(lab_cv, cv2.COLOR_LAB2BGR)

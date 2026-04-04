@@ -1,8 +1,16 @@
+"""
+Image gradient computation algorithms.
+
+This module provides functions for computing image gradients
+using various methods: Gaussian derivatives, Sobel operators,
+and Laplacian of Gaussian (LoG).
+"""
+
 import numpy as np
 import cv2 as cv
 from ..kernels import create_gaussian_derivative_kernel, create_gaussian_second_derivative_kernel
 from ..utils import convolve_separable
-from  .gaussian import create_gaussian_kernel
+from .gaussian import create_gaussian_kernel
 
 def gaussian_gradient_core(
     img: np.ndarray,
@@ -32,15 +40,19 @@ def gaussian_gradient_core(
     -------
     Gx : np.ndarray
         Gradient in the X direction (float32).
+        values may be positive or negative, not normalized.
 
     Gy : np.ndarray
         Gradient in the Y direction (float32).
+        values may be positive or negative, not normalized.
 
     Gmag : np.ndarray
         Gradient magnitude (float32).
+        values are non-negative, not normalized.
 
     Gphase : np.ndarray
         Gradient phase in radians (float32).
+        values are in range [-pi, pi], not normalized.
 
     Notes
     -----

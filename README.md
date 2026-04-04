@@ -1,79 +1,81 @@
 # Image Processing
 
-Image processing is a fascinating field that blends mathematics, algorithms, and computer science to enhance and analyze images. While it can be complex, understanding the fundamental techniques makes it an exciting and rewarding area to explore.
+This repository is an early-stage image processing project written in Python.
 
-This repository is designed for educational purposes, focusing on teaching the algorithms behind image processing rather than providing highly optimized code. The implementations prioritize clarity and readability to help learners grasp the core concepts without unnecessary complexity. 
+It is still under active restructuring, so the current focus is on composing and organizing complete implementations rather than providing a finished public package or formal documentation.
 
-If you're interested in learning more about image processing techniques, the algorithms behind them, and their applications as implemented in this repository, visit the blog below:
+The goal of this project is not to replace mature image processing libraries. The code is intentionally written in pure Python, which makes some optimizations harder and can limit execution speed compared with low-level implementations. Even so, the package aims to provide complete, practical techniques that can be used quickly in experiments and small workflows.
 
-[Learn Image Processing - Medium Page](https://medium.com/@fjzavala/list/image-processing-ae410f2c03c1)
+Where appropriate, the project uses `numba` to improve execution times in performance-sensitive routines.
 
-[Fundamentals of Image Processing and Computer Vision](https://medium.com/@fjzavala/fundamentals-of-image-processing-and-computer-vision-6ba4bc8cc4b4)
+## Project Status
 
-[Image histogram analysis.](https://medium.com/@fjzavala/image-histogram-analysis-e2f65635309d)
+- Early development version.
+- Internal structure is still being reorganized.
+- Package-level documentation is not available yet.
+- Examples are still the main place to explore features and experiment with implementations.
 
-[Image histogram equalization algorithm.](https://medium.com/@fjzavala/image-histogram-equalization-algorithm-f9be303b04be)
+## Repository Layout
 
-[Histogram equalization CLAHE algorithm.](https://medium.com/@fjzavala/histogram-equalization-clahe-algorithm-8841d402fc76)
+- `pixelops/`: core library code grouped by topic.
+- `examples/`: example implementations and usage experiments.
+- `tests/`: automated tests when available.
+- `data/`: input assets used by examples and experiments.
+- `benchmarks/`: scripts for measuring performance of selected algorithms.
 
-[Connected Component Labeling.](https://medium.com/@fjzavala/connected-component-labeling-9bfa464acf01)
+## Examples
 
-[Spatial domain filtering -Gaussian filter.](https://medium.com/@fjzavala/spatial-domain-filtering-gaussian-filter-188c38fef22e)
+The `examples/` folder contains implementation demos and work-in-progress scripts.
 
-[Convolution and Gaussian Filters: Theory and Applications in Digital Images.](https://medium.com/@fjzavala/gradient-and-second-derivative-in-images-fundamentals-and-efficient-applications-46832da5c75f)
+These examples are useful for:
 
-[Gradient and Second Derivative in Images: ](https://medium.com/imagecraft/gradient-and-second-derivative-in-images-fundamentals-and-efficient-applications-46832da5c75f)
+- exploring how an algorithm is implemented,
+- testing visual output,
+- comparing variants of the same idea,
+- iterating before code is promoted into the library.
 
-[Nonlinear Filters in Image Processing.](https://medium.com/imagecraft/nonlinear-filters-in-image-processing-18bb01720983)
+## Package
 
-[Fundamentals of Image Processing in the Frequency Domain](https://medium.com/imagecraft/fundamentals-of-image-processing-in-the-frequency-domain-ce9ec830181d)
+The library is being built incrementally and is not yet fully documented.
 
-[Enhancing Low-Light Photography: Fusion of Flash and No-Flash Images](https://medium.com/imagecraft/enhancing-low-light-photography-fusion-of-flash-and-no-flash-images-234128c6bc86)
+If you are using the package directly, inspect the source code inside `pixelops/` to understand the available functions and expected inputs.
 
-[Canny edge detector: theory and implementation](https://medium.com/imagecraft/canny-edge-detector-theory-and-implementation-ffd31cd28e73)
+## Requirements
 
-[Frequency-Domain Filtering: Fundamentals and Applications](https://medium.com/p/36a29924c4df)
+The project uses Python together with common scientific and image processing packages such as:
 
-[Filtering of Periodic Noise in the Frequency Domain](https://medium.com/imagecraft/filtering-of-periodic-noise-in-the-frequency-domain-9b24d7b380d8)
+- OpenCV
+- NumPy
+- Matplotlib
+- SciPy
+- Numba
 
-[Image resizing. Classical interpolation techniques](https://medium.com/gitconnected/image-resizing-classical-interpolation-techniques-29dc0321f4ad)
+Some modules may also depend on optional packages for performance or specific algorithms.
 
----
+## Running Examples
 
-## Build & Run
+Most example scripts are designed to be executed directly with Python.
 
-### Dependencies
+Typical workflow:
 
-Make sure you have the following libraries installed before running the code:
+1. Install the required dependencies.
+2. Run the example script from the project root.
+3. Use the images in `data/` or adjust the input path in the script.
 
-- OpenCV  
-- NumPy  
-- Matplotlib  
-- SciPy  
+## Development Notes
 
-images used in the programs [download](https://drive.google.com/drive/folders/1eWQGiG_y4u8-NLaaAkNftM8et6uiyP7E?usp=sharing)
+- This project is being refactored in small steps.
+- Some files are experimental or temporary.
+- Naming and folder organization may change as the library matures.
+- Documentation will be expanded once the core structure stabilizes.
 
----
+## Contributing
 
-## Recommended Resources  
+If you are modifying the project, keep changes small and consistent with the existing style.
 
-If you want to dive deeper into image processing, here are some great books, websites, and research papers:  
+When possible:
 
-### Books  
-- **Stan Birchfield** - *Image Processing and Analysis* (2018)  
-- **Rafael C. Gonzalez & Richard E. Woods** - *Digital Image Processing* (4th Edition, 2008)  
-
-
-### Websites  
-- [OpenCV Documentation](https://docs.opencv.org/) - Official OpenCV documentation.  
-
-
-### Research Papers  
-- Georg Petschnigg, Richard Szeliski, Maneesh Agrawala, Michael Cohen, Hugues Hoppe, and Kentaro Toyama. 2004. Digital photography with flash and no-flash image pairs.
-
----
-
-## Support and Feedback  
-If you found this repository useful, please consider giving it a ⭐ star and sharing it with others.  
-It helps me know that the material is valuable and encourages me to keep writing more in-depth articles and explanations on related topics.  
-Your feedback and support are what drive this project forward!
+- prefer readable implementations over premature optimization,
+- keep examples self-contained,
+- move stable code from `examples/` into `pixelops/` only when it is ready for reuse,
+- add tests alongside new reusable functionality.

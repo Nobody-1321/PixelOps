@@ -1,7 +1,15 @@
+"""
+Histogram utilities.
+
+This module provides functions for computing and manipulating
+histograms, including CLAHE-related clipping operations.
+"""
+
 import numpy as np
 from numba import njit
 
-def clip_histogram(hist, clip_limit):
+
+def clip_histogram(hist: np.ndarray, clip_limit: int) -> np.ndarray:
     """
     Clip a histogram and redistribute the excess uniformly.
 
@@ -69,14 +77,39 @@ def cal_histogram(channel):
 
     return hist
 
-#----------------------------------------------
+# ----------------------------------------------
 #
 #        Numba-optimized versions
 #
-#----------------------------------------------
+# ----------------------------------------------
+
 
 @njit(cache=True, fastmath=True)
-def clip_histogram_numba(hist, clip_limit):
+def clip_histogram_numba(hist: np.ndarray, clip_limit: int) -> np.ndarray:
+    """
+    Clip histogram and redistribute excess (Numba-optimized).
+
+    Fast JIT-compiled version of `clip_histogram` for use in
+    performance-critical histogram processing.
+
+    Parameters
+    ----------
+    hist : np.ndarray
+        Histogram array of shape (256,). Modified in-place.
+
+    clip_limit : int
+        Maximum allowed value per histogram bin.
+
+    Returns
+    -------
+    np.ndarray
+        Same histogram array, modified in-place.
+
+    Notes
+    -----
+    - Remainder is not distributed (simpler than clip_histogram).
+    - Designed for use within other Numba functions.
+    """
     excess = 0
 
     for i in range(256):
@@ -90,8 +123,30 @@ def clip_histogram_numba(hist, clip_limit):
 
     return hist
 
+
 @njit(cache=True, fastmath=True)
-def cal_histogram_numba(block):
+def cal_histogram_numba(block: np.ndarray) -> np.ndarray:
+    """
+    Compute histogram of an image block (Numba-optimized).
+
+    Fast JIT-compiled histogram computation for use in
+    CLAHE and other block-based algorithms.
+
+    Parameters
+    ----------
+    block : np.ndarray
+        Image block of shape (H, W) and dtype uint8.
+
+    Returns
+    -------
+    np.ndarray
+        Histogram array of shape (256,) and dtype int32.
+
+    Notes
+    -----
+    - Assumes uint8 input values in [0, 255].
+    - Designed for use within other Numba functions.
+    """
     hist = np.zeros(256, dtype=np.int32)
     h, w = block.shape
 
@@ -100,3 +155,4 @@ def cal_histogram_numba(block):
             hist[block[y, x]] += 1
 
     return hist
+

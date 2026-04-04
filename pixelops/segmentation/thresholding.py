@@ -1,9 +1,16 @@
+"""
+Image thresholding and segmentation algorithms.
+
+This module provides automatic threshold selection methods
+and binary segmentation utilities.
+"""
+
 import numpy as np
 import cv2 as cv
 from ..histogram.utils import cal_histogram
 
 
-def ridler_calvard_threshold(img, max_iterations=100, tolerance=1e-3):
+def ridler_calvard_threshold(img: np.ndarray, max_iterations: int = 100, tolerance: float = 1e-3) -> float:
     """
     Computes an automatic threshold using the Ridler-Calvard (ISODATA) method.
 

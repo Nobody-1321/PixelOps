@@ -1,14 +1,39 @@
 import numpy as np
 from numba import njit, prange
 
-#----------------------------------------------
+# ----------------------------------------------
 #
-#        Numba-optimized versions
+#        Numba-optimized filtering utilities
 #
-#----------------------------------------------
+# ----------------------------------------------
+
 
 @njit(inline="always")
 def reflect(idx: int, size: int) -> int:
+    """
+    Compute reflected index for boundary handling.
+
+    Implements reflection boundary condition where indices
+    outside [0, size) are mirrored back into valid range.
+
+    Parameters
+    ----------
+    idx : int
+        Input index (may be negative or >= size).
+
+    size : int
+        Size of the dimension.
+
+    Returns
+    -------
+    int
+        Reflected index in range [0, size).
+
+    Notes
+    -----
+    - Equivalent to OpenCV's BORDER_REFLECT_101.
+    - Handles one level of reflection (single boundary crossing).
+    """
     if idx < 0:
         return -idx - 1
     if idx >= size:
@@ -22,8 +47,32 @@ def convolve_separable(
     kernel_v: np.ndarray
 ) -> np.ndarray:
     """
-    Separable convolution returning a new array.
-    Uses kernel_h for horizontal pass, kernel_v for vertical pass.
+    Perform separable 2D convolution on a grayscale image.
+
+    Applies horizontal convolution followed by vertical convolution,
+    exploiting separability for O(k) complexity instead of O(k²).
+
+    Parameters
+    ----------
+    src : np.ndarray
+        Input grayscale image of shape (H, W) and dtype float32.
+
+    kernel_h : np.ndarray
+        1D horizontal kernel.
+
+    kernel_v : np.ndarray
+        1D vertical kernel.
+
+    Returns
+    -------
+    np.ndarray
+        Convolved image of shape (H, W) and dtype float32.
+
+    Notes
+    -----
+    - Uses reflection boundary handling.
+    - Parallelized with Numba for performance.
+    - Result is a new array (src is not modified).
     """
     H, W = src.shape
     k_h = kernel_h.shape[0]
@@ -61,8 +110,34 @@ def convolve_separable_inplace(
     dst: np.ndarray
 ) -> None:
     """
-    Separable convolution writing result into pre-allocated dst array.
+    Perform separable convolution writing result to pre-allocated array.
+
     Uses the same kernel for both horizontal and vertical passes.
+    More memory-efficient than `convolve_separable` when the
+    destination buffer can be reused.
+
+    Parameters
+    ----------
+    src : np.ndarray
+        Input grayscale image of shape (H, W) and dtype float32.
+
+    kernel : np.ndarray
+        1D kernel used for both horizontal and vertical passes.
+
+    dst : np.ndarray
+        Pre-allocated output array of same shape as src.
+        Will be overwritten with the convolution result.
+
+    Returns
+    -------
+    None
+        Result is written to dst in-place.
+
+    Notes
+    -----
+    - Uses reflection boundary handling.
+    - Parallelized with Numba for performance.
+    - Internally allocates a temporary buffer.
     """
     H, W = src.shape
     k = kernel.shape[0]

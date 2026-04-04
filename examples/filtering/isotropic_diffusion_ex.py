@@ -3,7 +3,7 @@ import pixelops as pix
 import cv2 as cv
 import numpy as np
 
-img_path = "./data/img/botticelli-primaveraNO.jpg"
+img_path = "./data/img/botticelli-primavera.jpg"
 
 iterations = 35
 gamma_s = 0.06

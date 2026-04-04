@@ -9,10 +9,15 @@ from .equalization import (
     clahe,
 )
 
+from .hue_wheel_histogram import (
+    hue_histogram_polar,
+)
+
 __all__ = [
     'cal_histogram',
     'clip_histogram',
     'cal_histogram_numba',
     'histogram_equalization',
     'clahe',
+    'hue_histogram_polar',
 ]

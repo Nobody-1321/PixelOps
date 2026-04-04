@@ -1,3 +1,10 @@
+"""
+Mean-shift filtering.
+
+This module implements mean-shift filtering for edge-preserving
+smoothing based on iterative mode seeking in spatial-range space.
+"""
+
 import numpy as np
 from numba import njit, prange
 
@@ -194,134 +201,3 @@ def mean_shift_filter(
         raise ValueError("Input image must be 2D or 3D.")
 
     return out
-
-'''
-def mean_shift_filter_grayscale(
-    image: np.ndarray,
-    hs: int,
-    hr: float,
-    max_iter: int = 5,
-    eps: float = 1.0
-) -> np.ndarray:
-    """
-    Apply mean shift filtering to a grayscale image.
-
-    This function acts as a high-level wrapper that validates
-    input and delegates the core computation to a Numba-optimized
-    backend.
-
-    Parameters
-    ----------
-    image : np.ndarray
-        Input grayscale image of shape (H, W) and dtype uint8.
-        Pixel values are expected to be in the range [0, 255].
-
-    hs : int
-        Spatial bandwidth (kernel radius in pixels).
-        Controls spatial smoothing extent.
-
-    hr : float
-        Range bandwidth (intensity similarity threshold).
-        Controls how similar intensities must be to be averaged.
-
-    max_iter : int, optional
-        Maximum number of mean shift iterations per pixel. Default is 5.
-
-    eps : float, optional
-        Convergence threshold. Iteration stops when shift magnitude
-        is below this value. Default is 1.0.
-
-    Returns
-    -------
-    np.ndarray
-        Filtered grayscale image of shape (H, W) and dtype uint8.
-
-    Raises
-    ------
-    ValueError
-        If `image` is not a 2D array.
-        If `hs` is not positive.
-        If `hr` is not positive.
-
-    Notes
-    -----
-    - Mean shift is an edge-preserving filter similar to bilateral filtering.
-    - Larger `hs` increases spatial smoothing.
-    - Larger `hr` allows more intensity variation to be averaged.
-    - The algorithm converges when pixel shifts become smaller than `eps`.
-    """
-    if image.ndim != 2:
-        raise ValueError("Input image must be grayscale (2D array).")
-    
-    if hs <= 0:
-        raise ValueError("Spatial bandwidth (hs) must be positive.")
-    
-    if hr <= 0:
-        raise ValueError("Range bandwidth (hr) must be positive.")
-
-    image_f = image.astype(np.float32)
-    
-    output = mean_shift_filter_core(image_f, hs, hr, max_iter, eps)
-    
-    return np.clip(output, 0, 255).astype(np.uint8)
-
-def mean_shift_filter_bgr(
-    image: np.ndarray,
-    hs: int,
-    hr: float,
-    max_iter: int = 5,
-    eps: float = 1.0
-) -> np.ndarray:
-    """
-    Apply mean shift filtering to a BGR image.
-
-    This function processes each channel independently using
-    the grayscale mean shift filter.
-
-    Parameters
-    ----------
-    image : np.ndarray
-        Input BGR image of shape (H, W, 3) and dtype uint8.
-        Pixel values are expected to be in the range [0, 255].
-
-    hs : int
-        Spatial bandwidth (kernel radius in pixels).
-        Controls spatial smoothing extent.
-
-    hr : float
-        Range bandwidth (intensity similarity threshold).
-        Controls how similar intensities must be to be averaged.
-
-    max_iter : int, optional
-        Maximum number of mean shift iterations per pixel. Default is 5.
-
-    eps : float, optional
-        Convergence threshold. Iteration stops when shift magnitude
-        is below this value. Default is 1.0.
-    Returns
-    -------
-    np.ndarray
-        Filtered BGR image of shape (H, W, 3) and dtype uint8.
-    Raises
-    ------
-    ValueError
-        If `image` is not a 3D array with 3 channels.
-    Notes
-    -----
-    - Each channel is processed independently using the same parameters.                
-
-    - No color space conversion or channel mixing is performed.
-    """ 
-
-    if image.ndim != 3 or image.shape[2] != 3:
-        raise ValueError("Input image must be BGR (3D array with 3 channels).")
-
-    out = np.empty_like(image, dtype=np.uint8)
-
-    for c in range(3):
-        out[:, :, c] = mean_shift_filter_grayscale(
-            image[:, :, c], hs, hr, max_iter, eps
-        )
-
-    return out
-'''

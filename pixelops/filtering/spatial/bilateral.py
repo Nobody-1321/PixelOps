@@ -3,11 +3,34 @@ from scipy.special import comb
 from numba import njit, prange
 from ..utils import convolve_separable_inplace
 from ..kernels import create_gaussian_kernel_radius
-import numpy as np
-from scipy.special import comb
-from numba import njit, prange
+
 
 def binomial_coeffs(n: int, dtype=np.float32) -> np.ndarray:
+    """
+    Compute normalized binomial coefficients for bilateral filtering.
+
+    These coefficients are used in the trigonometric polynomial
+    approximation of the bilateral filter's range kernel.
+
+    Parameters
+    ----------
+    n : int
+        Order of the binomial expansion. Must be positive.
+
+    dtype : np.dtype, optional
+        Data type for the output array. Default is float32.
+
+    Returns
+    -------
+    np.ndarray
+        Array of shape (n + 1,) containing normalized binomial
+        coefficients.
+
+    Notes
+    -----
+    - Normalization factor is 2^(2n-2).
+    - Higher n provides better approximation at increased cost.
+    """
     coeffs = np.empty(n + 1, dtype=dtype)
     norm = 2 ** (2 * n - 2)
     for i in range(n + 1):
@@ -22,6 +45,40 @@ def bilateral_filter_core(
     n_iter: int,
     sr: float
 ):
+    """
+    Core bilateral filter using trigonometric polynomial approximation.
+
+    Implements fast bilateral filtering via Fourier series expansion
+    of the range kernel, enabling separable convolution.
+
+    Parameters
+    ----------
+    I : np.ndarray
+        Input grayscale image as float32, values in [0, 1].
+        Modified in-place.
+
+    binom : np.ndarray
+        Binomial coefficients for polynomial approximation.
+
+    gauss_kernel : np.ndarray
+        1D Gaussian kernel for spatial filtering.
+
+    n_iter : int
+        Number of iterations.
+
+    sr : float
+        Range sigma (intensity similarity bandwidth).
+
+    Returns
+    -------
+    np.ndarray
+        Filtered image as float32.
+
+    Notes
+    -----
+    - Uses trigonometric recurrence for efficiency.
+    - Numba-compiled for performance.
+    """
     H, W = I.shape
     n = binom.shape[0] - 1
     sqrt_n = np.sqrt(n)
@@ -89,13 +146,57 @@ def bilateral_filter(
     n: int = 3
 ) -> np.ndarray:
     """
-    Apply a bilateral filter to a grayscale or multi-channel image.
+    Apply bilateral filter to a grayscale or multi-channel image.
+
+    Edge-preserving smoothing filter that considers both spatial
+    proximity and intensity similarity. Uses fast polynomial
+    approximation for efficiency.
+
+    Parameters
+    ----------
+    img : np.ndarray
+        Input image of shape (H, W) or (H, W, C).
+        Any numeric dtype is accepted.
+
+    ss : float
+        Spatial sigma (spatial bandwidth in pixels).
+        Must be positive. Controls spatial extent of smoothing.
+
+    sr : float
+        Range sigma (intensity bandwidth).
+        Must be positive. Controls sensitivity to intensity differences.
+
+    n_iter : int, optional
+        Number of filtering iterations. Default is 1.
+        Must be positive.
+
+    n : int, optional
+        Polynomial order for approximation. Default is 3.
+        Must be a positive odd integer. Higher values improve
+        accuracy but increase computation.
+
+    Returns
+    -------
+    np.ndarray
+        Filtered image with same shape as input and dtype float32.
+        Values are in range [0, 1].
+
+    Raises
+    ------
+    ValueError
+        If ss <= 0, sr <= 0, n_iter <= 0, or n is not a positive
+        odd integer.
 
     Notes
     -----
-    - This function operates in floating point space.
-    - No normalization or quantization is applied.
-    - Boundary handling depends on the bilateral backend.
+    - Input is normalized to [0, 1] internally.
+    - No normalization or quantization is applied to output.
+    - Each channel is processed independently.
+
+    References
+    ----------
+    .. [1] Chaudhury, K., "Fast O(1) Bilateral Filtering Using
+           Trigonometric Range Kernels", TIP 2011.
     """
 
     if ss <= 0:

@@ -107,6 +107,23 @@ def histogram_equalization(image):
 def create_mapping_numba(hist, num_pixels):
     lut = np.empty(256, dtype=np.uint8)
 
+    if num_pixels <= 0:
+        for i in range(256):
+            lut[i] = i
+        return lut
+
+    non_zero_bins = 0 
+    single_value = -1
+    for i in range(256):
+        if hist[i] > 0:
+            non_zero_bins += 1
+            single_value = i
+    
+    if non_zero_bins == 1:
+        for i in range(256):
+            lut[i] = single_value
+        return lut
+    
     cdf = 0
     cdf_min = -1
 

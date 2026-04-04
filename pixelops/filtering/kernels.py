@@ -1,3 +1,10 @@
+"""
+Convolution kernel generators.
+
+This module provides functions for creating Gaussian kernels
+and their derivatives for filtering operations.
+"""
+
 import numpy as np
 
 def get_kernel_half_width(sigma: float) -> int:
@@ -71,7 +78,34 @@ def create_gaussian_kernel(sigma: float) -> np.ndarray:
     return kernel
 
 def create_gaussian_kernel_radius(sigma: float, radius: int | None = None):
-    
+    """
+    Generate a normalized 1D Gaussian kernel with explicit radius control.
+
+    Unlike `create_gaussian_kernel`, this function allows manual
+    specification of the kernel radius for finer control over
+    the spatial extent.
+
+    Parameters
+    ----------
+    sigma : float
+        Standard deviation of the Gaussian function.
+        Must be positive.
+
+    radius : int or None, optional
+        Half-width of the kernel. If None, defaults to int(3 * sigma).
+        The full kernel size will be 2 * radius + 1.
+
+    Returns
+    -------
+    np.ndarray
+        1D Gaussian kernel of shape (2 * radius + 1,) with dtype
+        float32 and sum equal to 1.
+
+    Notes
+    -----
+    - Useful when you need explicit control over kernel size.
+    - Energy is preserved through normalization.
+    """
     if radius is None:
         radius = int(3 * sigma)
     

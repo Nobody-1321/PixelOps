@@ -1,10 +1,40 @@
+"""
+Dithering and quantization algorithms.
+
+This module provides error-diffusion and ordered dithering methods
+for converting grayscale images to binary or reduced-level images.
+"""
+
 import numpy as np
 from numba import njit, prange
 
 
 @njit
 def floyd_steinberg_dithering(image: np.ndarray) -> np.ndarray:
-    """Floyd-Steinberg: difusión 7/16, 3/16, 5/16, 1/16"""
+    """
+    Apply Floyd-Steinberg error diffusion dithering.
+
+    Converts a grayscale image to binary using error diffusion
+    with the classic Floyd-Steinberg coefficients.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Input grayscale image of shape (H, W).
+        Any numeric dtype is accepted.
+
+    Returns
+    -------
+    np.ndarray
+        Binary image of shape (H, W) and dtype uint8.
+        Values are 0 or 255.
+
+    Notes
+    -----
+    - Error diffusion pattern: 7/16, 3/16, 5/16, 1/16.
+    - Scans left-to-right, top-to-bottom.
+    - Threshold is fixed at 127.
+    """
     img = image.astype(np.float32)
     h, w = img.shape
 
@@ -30,9 +60,33 @@ def floyd_steinberg_dithering(image: np.ndarray) -> np.ndarray:
 
     return img.astype(np.uint8)
 
+
 @njit
 def atkinson_dithering(image: np.ndarray) -> np.ndarray:
-    """Atkinson: difunde solo 6/8 del error (más contraste)"""
+    """
+    Apply Atkinson error diffusion dithering.
+
+    Converts a grayscale image to binary using Atkinson's
+    error diffusion pattern, which diffuses only 6/8 of the
+    error for higher contrast.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Input grayscale image of shape (H, W).
+
+    Returns
+    -------
+    np.ndarray
+        Binary image of shape (H, W) and dtype uint8.
+        Values are 0 or 255.
+
+    Notes
+    -----
+    - Diffuses only 75% of error (higher contrast than Floyd-Steinberg).
+    - Uses 6-neighbor diffusion pattern.
+    - Popular for its distinctive look in early Macintosh graphics.
+    """
     img = image.astype(np.float32)
     h, w = img.shape
 
@@ -62,10 +116,38 @@ def atkinson_dithering(image: np.ndarray) -> np.ndarray:
 
     return img.astype(np.uint8)
 
+
 @njit(parallel=True)
 def bayer_dithering(image: np.ndarray, matrix_size: int = 4) -> np.ndarray:
-    """Ordered dithering con matriz Bayer (paralelizable)"""
-    # Matriz Bayer 4x4 normalizada
+    """
+    Apply ordered Bayer dithering.
+
+    Converts a grayscale image to binary using a threshold matrix
+    (Bayer matrix) for ordered dithering. Produces a regular
+    halftone-like pattern.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Input grayscale image of shape (H, W) and dtype uint8.
+
+    matrix_size : int, optional
+        Size of the Bayer matrix. Default is 4 (4x4 matrix).
+        Currently only 4x4 is implemented.
+
+    Returns
+    -------
+    np.ndarray
+        Binary image of shape (H, W) and dtype uint8.
+        Values are 0 or 255.
+
+    Notes
+    -----
+    - Parallelized for performance.
+    - No sequential dependencies (unlike error diffusion).
+    - Produces characteristic crosshatch patterns.
+    """
+    # Bayer 4x4 matrix (normalized)
     bayer_4x4 = np.array([
         [ 0,  8,  2, 10],
         [12,  4, 14,  6],
@@ -83,9 +165,35 @@ def bayer_dithering(image: np.ndarray, matrix_size: int = 4) -> np.ndarray:
 
     return output
 
+
 @njit
 def uniform_quantize(image: np.ndarray, levels: int = 8) -> np.ndarray:
-    """Cuantización uniforme a N niveles"""
+    """
+    Apply uniform quantization to reduce intensity levels.
+
+    Maps pixel values to a reduced set of uniformly-spaced
+    intensity levels.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Input grayscale image of shape (H, W).
+
+    levels : int, optional
+        Number of output levels. Default is 8.
+        Must be positive.
+
+    Returns
+    -------
+    np.ndarray
+        Quantized image of same shape and dtype as input.
+        Values are centered within each quantization bin.
+
+    Notes
+    -----
+    - Output values are: step/2, 3*step/2, ..., (2*levels-1)*step/2
+    - No dithering is applied.
+    """
     step = 256.0 / levels
     output = np.zeros_like(image)
     h, w = image.shape
@@ -96,11 +204,31 @@ def uniform_quantize(image: np.ndarray, levels: int = 8) -> np.ndarray:
 
     return output
 
+
 def floyd_steinberg_serpentine(image: np.ndarray) -> np.ndarray:
     """
-    Floyd–Steinberg error diffusion with serpentine scanning.
-    """
+    Apply Floyd-Steinberg dithering with serpentine scanning.
 
+    Alternates scan direction between rows to reduce visual
+    artifacts that can appear with unidirectional scanning.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Input grayscale image of shape (H, W).
+
+    Returns
+    -------
+    np.ndarray
+        Binary image of shape (H, W) and dtype uint8.
+        Values are 0 or 255.
+
+    Notes
+    -----
+    - Even rows scan left-to-right.
+    - Odd rows scan right-to-left.
+    - Reduces "wormy" artifacts common in standard Floyd-Steinberg.
+    """
     img = image.astype(np.float32)
     h, w = img.shape
 

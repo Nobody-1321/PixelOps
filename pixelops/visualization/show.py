@@ -1,8 +1,37 @@
+"""
+Visualization utilities.
+
+This module provides functions for displaying images using
+Matplotlib and OpenCV backends.
+"""
+
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2 as cv
 
-def _imshow(ax, img, title):
+
+def _imshow(ax, img: np.ndarray, title: str) -> None:
+    """
+    Helper to display an image on a matplotlib axes.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Axes object to display the image on.
+
+    img : np.ndarray
+        Image of shape (H, W) or (H, W, 3).
+
+    title : str
+        Title to display above the image.
+
+    Raises
+    ------
+    TypeError
+        If img is not a numpy array.
+    ValueError
+        If image format is not supported.
+    """
     if not isinstance(img, np.ndarray):
         raise TypeError("Image must be a numpy array.")
 

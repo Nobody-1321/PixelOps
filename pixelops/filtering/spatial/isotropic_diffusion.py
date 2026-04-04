@@ -1,3 +1,10 @@
+"""
+Isotropic diffusion filtering.
+
+This module implements isotropic diffusion (heat equation)
+for uniform image smoothing.
+"""
+
 import numpy as np
 from numba import njit, prange
 
@@ -31,7 +38,8 @@ def isotropic_diffusion_core(
     Returns
     -------
     np.ndarray
-        Filtered image as float32.
+        Filtered image as float32,
+        values may exceed [0, 1] and should be normalized/clipped by caller.
     """
     H, W = img.shape
     out = img.copy()
@@ -86,6 +94,7 @@ def isotropic_diffusion(
     -------
     np.ndarray
         Diffused image with same shape as input and dtype float32.
+        Values may exceed [0, 1] and should be normalized/clipped by caller.
 
     Notes
     -----
@@ -124,120 +133,3 @@ def isotropic_diffusion(
 
     else:
         raise ValueError("Invalid image dimensions.")
-
-'''
-def isotropic_diffusion_grayscale(
-    image: np.ndarray,
-    n_iter: int = 10,
-    gamma: float = 0.25
-) -> np.ndarray:
-    """
-    Apply isotropic diffusion (heat equation) to a grayscale image.
-
-    This filter performs uniform smoothing equivalent to Gaussian blur.
-    Unlike anisotropic diffusion, it does NOT preserve edges - all regions
-    are smoothed equally.
-
-    The effective Gaussian sigma after n iterations is approximately:
-        σ_effective ≈ √(2 * n_iter * gamma)
-
-    Parameters
-    ----------
-    image : np.ndarray
-        Input grayscale image of shape (H, W) and dtype uint8.
-
-    n_iter : int, optional
-        Number of diffusion iterations. Default is 10.
-        More iterations = more smoothing.
-
-    gamma : float, optional
-        Integration constant. Default is 0.25 (maximum stable value).
-        Must be in (0, 0.25] for stability.
-
-    Returns
-    -------
-    np.ndarray
-        Filtered grayscale image of shape (H, W) and dtype uint8.
-
-    Raises
-    ------
-    ValueError
-        If gamma is not in (0, 0.25].
-        If image is not 2D.
-
-    Examples
-    --------
-    >>> from pixelops.filtering import isotropic_diffusion_grayscale
-    >>> # Light smoothing (σ ≈ 2.2)
-    >>> out = isotropic_diffusion_grayscale(img, n_iter=10, gamma=0.25)
-    >>> # Strong smoothing (σ ≈ 5)
-    >>> out = isotropic_diffusion_grayscale(img, n_iter=50, gamma=0.25)
-
-    Notes
-    -----
-    - This is equivalent to solving the heat equation ∂I/∂t = ∇²I.
-    - For edge-preserving smoothing, use anisotropic_diffusion_grayscale.
-    - The algorithm is unconditionally stable for gamma ≤ 0.25.
-    """
-    if image.ndim != 2:
-        raise ValueError("Input image must be grayscale (2D array).")
-    
-    if not (0 < gamma <= 0.25):
-        raise ValueError("gamma must be in (0, 0.25] for stability.")
-
-    img_f = image.astype(np.float32) / 255.0
-    
-    out = isotropic_diffusion_core(img_f, n_iter, gamma)
-    
-    return np.clip(out * 255.0, 0, 255).astype(np.uint8)
-
-def isotropic_diffusion_bgr(
-    image: np.ndarray,
-    n_iter: int = 10,
-    gamma: float = 0.25
-) -> np.ndarray:
-    """
-    Apply isotropic diffusion (heat equation) to a BGR image.
-
-    The filter is applied independently to each color channel.
-    This performs uniform Gaussian-like smoothing without edge preservation.
-
-    Parameters
-    ----------
-    image : np.ndarray
-        Input BGR image of shape (H, W, 3) and dtype uint8.
-
-    n_iter : int, optional
-        Number of diffusion iterations. Default is 10.
-
-    gamma : float, optional
-        Integration constant. Default is 0.25.
-        Must be in (0, 0.25] for stability.
-
-    Returns
-    -------
-    np.ndarray
-        Filtered BGR image of shape (H, W, 3) and dtype uint8.
-
-    Raises
-    ------
-    ValueError
-        If gamma is not in (0, 0.25].
-        If image is not 3D with 3 channels.
-    """
-    if image.ndim != 3 or image.shape[2] != 3:
-        raise ValueError("Input image must be BGR (3D array with 3 channels).")
-    
-    if not (0 < gamma <= 0.25):
-        raise ValueError("gamma must be in (0, 0.25] for stability.")
-
-    img_f = image.astype(np.float32) / 255.0
-    out = np.empty_like(img_f)
-
-    for c in range(3):
-        out[:, :, c] = isotropic_diffusion_core(
-            img_f[:, :, c].copy(), n_iter, gamma
-        )
-
-    return np.clip(out * 255.0, 0, 255).astype(np.uint8)
-'''

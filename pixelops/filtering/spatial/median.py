@@ -1,3 +1,10 @@
+"""
+Median filtering.
+
+This module provides efficient median filtering using
+histogram-based sliding window algorithms.
+"""
+
 import numpy as np
 from numba import njit, prange
 from ..utils import reflect
