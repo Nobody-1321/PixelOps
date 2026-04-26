@@ -21,6 +21,8 @@ src/*.png
 /pixelops/visualization/__pycache__/
 /pixelops/color/__pycache__/
 /tests/__pycache__/
+/pixelops/quantization/__pycache__/
+
 /src/pixelops.egg-info
 /data/img/*NO.*
 examples/temp/
