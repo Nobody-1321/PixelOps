@@ -7,6 +7,10 @@ algorithm for edge-preserving image smoothing.
 
 import numpy as np
 from numba import njit, prange
+from pixelops.core import (
+    to_float32,
+    validate_image
+)
 
 @njit(inline="always")
 def diffusivity_exp(gradient_sq: float, kappa_sq: float) -> float:
@@ -31,7 +35,7 @@ def diffusivity_inv(gradient_sq: float, kappa_sq: float) -> float:
     return 1.0 / (1.0 + gradient_sq / kappa_sq)
 
 @njit(parallel=True, fastmath=True, cache=True)
-def anisotropic_diffusion_core(
+def _anisotropic_diffusion_core(
     img: np.ndarray,
     n_iter: int,
     kappa: float,
@@ -136,11 +140,11 @@ def anisotropic_diffusion_core(
     return out
 
 def anisotropic_diffusion(
-    image: np.ndarray,
+    img: np.ndarray,
     n_iter: int = 10,
     kappa: float = 50.0,
     gamma: float = 0.1,
-    option: int = 1
+    method: str = "exponential",
 ) -> np.ndarray:
     """
     Apply Perona-Malik anisotropic diffusion to an image.
@@ -150,7 +154,7 @@ def anisotropic_diffusion(
 
     Parameters
     ----------
-    image : np.ndarray
+    img : np.ndarray
         Input image of shape (H, W) or (H, W, C).
         Any numeric dtype is accepted.
 
@@ -164,10 +168,10 @@ def anisotropic_diffusion(
     gamma : float, optional
         Integration constant. Must be in (0, 0.25] for stability.
 
-    option : int, optional
+    method : str, optional
         Diffusivity function:
-        - 1: Exponential
-        - 2: Inverse quadratic
+        - "exponential": Exponential
+        - "inverse": Inverse quadratic
 
     Returns
     -------
@@ -191,26 +195,28 @@ def anisotropic_diffusion(
     if not (0 < gamma <= 0.25):
         raise ValueError("gamma must be in (0, 0.25].")
 
-    if option not in (1, 2):
-        raise ValueError("option must be 1 or 2.")
+    if method not in ("exponential", "inverse"):
+        raise ValueError("method must be 'exponential' or 'inverse'.")
 
-    img_f = image.astype(np.float32)
+    options = {"exponential": 1, "inverse": 2} 
+    validate_image(img)
+    img_f = to_float32(img)    
 
     if img_f.ndim == 2:
-        return anisotropic_diffusion_core(
-            img_f, n_iter, kappa, gamma, option
+        return _anisotropic_diffusion_core(
+            img_f, n_iter, kappa, gamma, options[method]
         )
 
     elif img_f.ndim == 3:
         out = np.empty_like(img_f)
 
         for c in range(img_f.shape[2]):
-            out[:, :, c] = anisotropic_diffusion_core(
+            out[:, :, c] = _anisotropic_diffusion_core(
                 img_f[:, :, c],
                 n_iter,
                 kappa,
                 gamma,
-                option
+                options[method]
             )
 
         return out

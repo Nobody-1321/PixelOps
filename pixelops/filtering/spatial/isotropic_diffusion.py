@@ -7,6 +7,10 @@ for uniform image smoothing.
 
 import numpy as np
 from numba import njit, prange
+from pixelops.core import (
+    to_float32,
+    validate_image
+)
 
 @njit(parallel=True, fastmath=True, cache=True)
 def isotropic_diffusion_core(
@@ -111,10 +115,8 @@ def isotropic_diffusion(
     if not (0 < gamma <= 0.25):
         raise ValueError("gamma must be in (0, 0.25].")
 
-    if image.dtype == np.uint8:
-        img_f = image.astype(np.float32) / 255.0
-    else:
-        img_f = image.astype(np.float32)
+    validate_image(image)
+    img_f = to_float32(image)
         
     if img_f.ndim == 2:
         return isotropic_diffusion_core(img_f, n_iter, gamma)

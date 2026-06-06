@@ -92,7 +92,7 @@ def create_gaussian_kernel_radius(sigma: float, radius: int | None = None):
         Must be positive.
 
     radius : int or None, optional
-        Half-width of the kernel. If None, defaults to int(3 * sigma).
+        Half-width of the kernel. If None, defaults to int(2.5 * sigma).
         The full kernel size will be 2 * radius + 1.
 
     Returns
@@ -107,7 +107,7 @@ def create_gaussian_kernel_radius(sigma: float, radius: int | None = None):
     - Energy is preserved through normalization.
     """
     if radius is None:
-        radius = int(3 * sigma)
+        radius = int(2.5 * sigma)
     
     size = 2 * radius + 1
     

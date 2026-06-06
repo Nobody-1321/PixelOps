@@ -79,3 +79,11 @@ When possible:
 - keep examples self-contained,
 - move stable code from `examples/` into `pixelops/` only when it is ready for reuse,
 - add tests alongside new reusable functionality.
+
+doc rule
+Parameters
+Returns
+Raises
+Examples
+References
+Notes

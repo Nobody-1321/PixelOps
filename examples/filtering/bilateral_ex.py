@@ -1,28 +1,25 @@
-import numpy as np
-import pixelops as pix
-from pixelops.filtering import bilateral_filter
+from pixelops.io import imread
+from pixelops.visualization import show_image
+from pixelops.core import rescale_to_uint8
+import matplotlib.pyplot as plt
+from pixelops.filtering import bilateral
 
-img_gray = pix.open_image("./data/img/desert.jpg", mode="gray")
+img_gray = imread("./data/img/desert.jpg", mode="gray")
+filtered_img = bilateral(img_gray, 1.2, 0.7, 8, 5)
+filtered_img =rescale_to_uint8(filtered_img)
 
-filtered_img = bilateral_filter(img_gray, 1.2, 0.7, 8, 5)
-filtered_img = pix.normalize_to_uint8(filtered_img)
+fig, ax = plt.subplots(1,2, figsize=(12, 6))
+show_image(ax[0], img_gray, title="Original Grayscale")
+show_image(ax[1], filtered_img, title="Bilateral Filtered Grayscale")
+plt.show()
 
-pix.show_side_by_side(
-    img_gray,
-    filtered_img, 
-    title1="Original Grayscale Image", 
-    title2="Bilateral Filtered Grayscale Image"
-)
 
-img_bgr = pix.open_image("./data/img/desert.jpg", mode="bgr")
+img_bgr = imread("./data/img/desert.jpg", mode="rgb")
+filtered_img_bgr = bilateral(img_bgr, 2.0, 0.8, 8, 3)
+filtered_img_bgr = rescale_to_uint8(filtered_img_bgr)
 
-filtered_img_bgr = bilateral_filter(img_bgr, 2.0, 0.8, 8, 3)
-filtered_img_bgr = pix.normalize_to_uint8(filtered_img_bgr)
-
-pix.show_side_by_side(
-    img_bgr,
-    filtered_img_bgr,
-    title1="Original BGR Image",
-    title2="Bilateral Filtered BGR Image"
-)
+fig, ax = plt.subplots(1,2, figsize=(12, 6))
+show_image(ax[0], img_bgr, title="Original RGB")
+show_image(ax[1], filtered_img_bgr, title="Bilateral Filtered RGB")
+plt.show()
 

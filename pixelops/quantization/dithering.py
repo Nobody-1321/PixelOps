@@ -8,7 +8,6 @@ for converting grayscale images to binary or reduced-level images.
 import numpy as np
 from numba import njit, prange
 
-
 @njit
 def floyd_steinberg_dithering(image: np.ndarray) -> np.ndarray:
     """
@@ -59,7 +58,6 @@ def floyd_steinberg_dithering(image: np.ndarray) -> np.ndarray:
             img[y, x] = min(max(img[y, x], 0.0), 255.0)
 
     return img.astype(np.uint8)
-
 
 @njit
 def atkinson_dithering(image: np.ndarray) -> np.ndarray:
@@ -116,7 +114,6 @@ def atkinson_dithering(image: np.ndarray) -> np.ndarray:
 
     return img.astype(np.uint8)
 
-
 @njit(parallel=True)
 def bayer_dithering(image: np.ndarray, matrix_size: int = 4) -> np.ndarray:
     """
@@ -165,7 +162,6 @@ def bayer_dithering(image: np.ndarray, matrix_size: int = 4) -> np.ndarray:
 
     return output
 
-
 @njit
 def uniform_quantize(image: np.ndarray, levels: int = 8) -> np.ndarray:
     """
@@ -203,7 +199,6 @@ def uniform_quantize(image: np.ndarray, levels: int = 8) -> np.ndarray:
             output[y, x] = np.uint8((image[y, x] // step) * step + step / 2)
 
     return output
-
 
 def floyd_steinberg_serpentine(image: np.ndarray) -> np.ndarray:
     """

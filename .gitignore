@@ -1,30 +1,26 @@
-src/img/
-src/lip/__pycache__/
-/basura
-/next_pro
-src/img_data/
-src/*.png
-/src/*.jpg
-/src/*.jpeg
-/src/*NO.py
-/tempo
-/pixelops.egg-info
-/pixelops/__pycache__
-/pixelops/core/__pycache__/
-/pixelops/enhancement/__pycache__/
-/pixelops/segmentation/__pycache__/
-/pixelops/histogram/__pycache__/
-/pixelops/filtering/__pycache__/
-/pixelops/filtering/frequency/__pycache__/
-/pixelops/filtering/spatial/__pycache__/
-/pixelops/edges/__pycache__/
-/pixelops/visualization/__pycache__/
-/pixelops/color/__pycache__/
-/tests/__pycache__/
-/pixelops/quantization/__pycache__/
+# Bytecode and caches
+__pycache__/
+**/__pycache__/
+*.py[cod]
 
-/src/pixelops.egg-info
+# Build / packaging
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+
+# Project-specific artifacts
+pixelops.egg-info/
+
+# Source images and data
 /data/img/*NO.*
+
+# Temporary and example folders
 examples/temp/
-examples/my_tests/
 examples/WIP/
+
+# Local temporary folders
+/basura/
+
+# Misc
+.history

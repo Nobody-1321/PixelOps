@@ -1,17 +1,23 @@
-from pixelops.filtering import mean_shift_filter
-import pixelops as pix
-import numpy as np
+from pixelops.filtering import mean_shift
+import matplotlib.pyplot as plt
+from pixelops.core import rescale_to_uint8
+from pixelops.io import imread
+from pixelops.visualization import show_image
 
 
+img = imread("./data/img/Rabbit_Flowers.png", mode="gray")
 
-img = pix.open_image("./data/img/cerezo.png", mode="gray")
+out = mean_shift(img, hs=3, hr=0.10, max_iter=5, eps=1.0)
+out = rescale_to_uint8(out)
+fig, ax = plt.subplots(1, 2, figsize=(12, 6))
+show_image(ax[0], img, title="Original")
+show_image(ax[1], out, title="Mean Shift Filtered")
+plt.show()
 
-out = mean_shift_filter(img, hs=3, hr=30.0, max_iter=5, eps=1.0)
-out = pix.normalize_to_uint8(out)
-
-pix.show_side_by_side(img, out, title1="Original", title2="Mean Shift Filtered")
-
-img_bgr = pix.open_image("./data/img/cerezo.png", mode="bgr")
-out_bgr = mean_shift_filter(img_bgr, hs=15, hr=15.0, max_iter=25, eps=1.0)
-out_bgr = pix.normalize_to_uint8(out_bgr)
-pix.show_side_by_side(img_bgr, out_bgr, title1="Original", title2="Mean Shift Filtered")
+img_rgb = imread("./data/img/Rabbit_Flowers.png", mode="rgb")
+out_rgb = mean_shift(img_rgb, hs=20, hr=0.10, max_iter=10, eps=1.0)
+out_rgb = rescale_to_uint8(out_rgb)
+fig, ax = plt.subplots(1, 2, figsize=(12, 6))
+show_image(ax[0], img_rgb, title="Original")
+show_image(ax[1], out_rgb, title="Mean Shift Filtered")
+plt.show()

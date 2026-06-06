@@ -1,11 +1,21 @@
-from pixelops.filtering import median_filter
+from pixelops.filtering import median
 import pixelops as pix
+from pixelops.visualization import show_image
+from pixelops.io import imread
+import matplotlib.pyplot as plt
 
 
-img = pix.open_image("./data/img/botticelli-primavera.jpg", mode="gray")
-out = median_filter(img, window_size=3)
-pix.show_side_by_side(img, out, title1="Original", title2="Median Filtered")
+img = imread("./data/img/botticelli-primavera.jpg", mode="gray")
+out = median(img, window_size=3)
 
-img_bgr = pix.open_image("./data/img/botticelli-primavera.jpg", mode="bgr")
-out_bgr = median_filter(img_bgr, window_size=7)
-pix.show_side_by_side(img_bgr, out_bgr, title1="Original BGR", title2="Median Filtered BGR")
+fig, ax = plt.subplots(1, 2, figsize=(12, 6))
+show_image(ax[0], img, title="Original Grayscale")  
+show_image(ax[1], out, title="Median Filtered Grayscale")
+plt.show()
+
+img_rgb = imread("./data/img/botticelli-primavera.jpg", mode="rgb")  # Load as RGB  
+out_rgb = median(img_rgb, window_size=3)  # Apply median filter to RGB image
+fig, ax = plt.subplots(1, 2, figsize=(12, 6))
+show_image(ax[0], img_rgb, title="Original RGB")
+show_image(ax[1], out_rgb, title="Median Filtered RGB")
+plt.show()

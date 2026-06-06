@@ -8,9 +8,10 @@ histogram-based sliding window algorithms.
 import numpy as np
 from numba import njit, prange
 from ..utils import reflect
+from pixelops.core import to_uint8, validate_image
 
 @njit(cache=True)
-def median_from_histogram(hist: np.ndarray, total: int) -> int:
+def _median_from_histogram(hist: np.ndarray, total: int) -> int:
     """
     Compute the median value from a discrete histogram.
 
@@ -48,8 +49,8 @@ def median_from_histogram(hist: np.ndarray, total: int) -> int:
             return i
     return 255
 
-@njit(parallel=True, fastmath=True, cache=True)
-def median_filter_core(
+@njit(parallel=True, cache=True)
+def _median_core(
     img: np.ndarray,
     window_size: int
 ) -> np.ndarray:
@@ -96,7 +97,7 @@ def median_filter_core(
                 val = img[yy, xx]
                 hist[val] += 1
 
-        out[y, 0] = median_from_histogram(hist, window_size * window_size)
+        out[y, 0] = _median_from_histogram(hist, window_size * window_size)
 
         # Slide the window horizontally
         for x in range(1, W):
@@ -114,11 +115,11 @@ def median_filter_core(
                 new_val = img[yy, xx_new]
                 hist[new_val] += 1
 
-            out[y, x] = median_from_histogram(hist, window_size * window_size)
+            out[y, x] = _median_from_histogram(hist, window_size * window_size)
 
     return out
 
-def median_filter(
+def median(
     image: np.ndarray,
     window_size: int
 ) -> np.ndarray:
@@ -151,13 +152,15 @@ def median_filter(
 
     if window_size <= 0 or window_size % 2 == 0:
         raise ValueError("Window size must be a positive odd integer.")
-
-    if image.dtype != np.uint8:
-        raise ValueError("Input image must be uint8.")
+    
+    validate_image(image)
+    
+    if image.dtype != np.uint8: 
+        image = to_uint8(image)
 
     # Grayscale
     if image.ndim == 2:
-        return median_filter_core(image, window_size)
+        return _median_core(image, window_size)
 
     # Multi-channel (e.g. BGR, RGB, etc.)
     if image.ndim == 3:
@@ -165,7 +168,7 @@ def median_filter(
         out = np.empty_like(image)
 
         for ch in range(c):
-            out[:, :, ch] = median_filter_core(
+            out[:, :, ch] = _median_core(
                 image[:, :, ch], window_size
             )
 

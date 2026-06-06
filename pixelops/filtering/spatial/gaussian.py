@@ -1,9 +1,13 @@
 import numpy as np
 from ..utils import convolve_separable
 from ..kernels import create_gaussian_kernel
+from pixelops.core import (
+    to_float32,
+    validate_image
+)
 
+def gaussian(img: np.ndarray, sigma: float) -> np.ndarray:
 
-def gaussian_filter(img: np.ndarray, sigma: float) -> np.ndarray:
     """
     Apply Gaussian blur to an image using separable convolution.
 
@@ -39,7 +43,8 @@ def gaussian_filter(img: np.ndarray, sigma: float) -> np.ndarray:
     if sigma <= 0:
         raise ValueError("Sigma must be positive.")
 
-    img_f = img.astype(np.float32)
+    validate_image(img)
+    img_f = to_float32(img)
 
     kernel = create_gaussian_kernel(sigma)
 

@@ -7,10 +7,14 @@ smoothing based on iterative mode seeking in spatial-range space.
 
 import numpy as np
 from numba import njit, prange
-
+from pixelops.core import (
+    to_float32,
+    validate_grayscale,
+    validate_image
+)
 
 @njit(parallel=True, fastmath=True, cache=True)
-def mean_shift_filter_core(
+def _mean_shift_core(
     image_f: np.ndarray,
     hs: int,
     hr: float,
@@ -27,7 +31,7 @@ def mean_shift_filter_core(
     ----------
     image_f : np.ndarray
         Input grayscale image of shape (H, W) as float32, 
-        values in range [0, 255].
+        values in range [0, 1].
 
     hs : int
         Spatial bandwidth (kernel radius in pixels).
@@ -40,11 +44,19 @@ def mean_shift_filter_core(
 
     eps : float
         Convergence threshold for shift magnitude.
+        Since images are normalized to [0, 1],
+        typical values are in the interval [1e-4, 1e-2].
 
     Returns
     -------
     np.ndarray
         Filtered image of shape (H, W) as float32.
+        Notes
+    -----
+    - Input images are expected to be normalized to [0, 1].
+    - No normalization, clipping, or quantization is applied.
+    - Spatial distances are measured in pixel coordinates.
+    - Range distances are measured in normalized intensity space.
     """
     H, W = image_f.shape
     output = np.empty_like(image_f)
@@ -120,7 +132,7 @@ def mean_shift_filter_core(
 
     return output
 
-def mean_shift_filter(
+def mean_shift(
     image: np.ndarray,
     hs: int,
     hr: float,
@@ -138,15 +150,23 @@ def mean_shift_filter(
     ----------
     image : np.ndarray
         Input image of shape (H, W) or (H, W, C).
-        Any numeric dtype is accepted; internally converted to float32.
+        Any numeric dtype is accepted; internally converted to float32
+        in the range [0, 1].
 
     hs : int
         Spatial bandwidth (kernel radius in pixels).
         Must be positive.
 
     hr : float
-        Range bandwidth (intensity similarity threshold).
-        Must be positive.
+        Range bandwidth controlling intensity similarity.
+
+        Since PixelOps internally uses normalized float32 images
+        in the range [0, 1], recommended values are typically:
+
+        - 0.02 to 0.10 for weak smoothing
+        - 0.10 to 0.25 for stronger smoothing
+
+        Must be positive.      
 
     max_iter : int, optional
         Maximum number of mean shift iterations per pixel.
@@ -164,6 +184,7 @@ def mean_shift_filter(
 
     Notes
     -----
+    - PixelOps internally uses float32 images in the range [0, 1].
     - No normalization, clipping, or quantization is applied.
     - Each channel is processed independently for multi-channel inputs.
     - Suitable for advanced image processing pipelines.
@@ -181,11 +202,12 @@ def mean_shift_filter(
     if eps <= 0:
         raise ValueError("eps must be positive.")
 
-    img_f = image.astype(np.float32)
+    validate_image(image)
+    img_f = to_float32(image)
 
     # Grayscale
     if img_f.ndim == 2:
-        out = mean_shift_filter_core(
+        out = _mean_shift_core(
             img_f, hs, hr, max_iter, eps
         )
 
@@ -193,7 +215,7 @@ def mean_shift_filter(
     elif img_f.ndim == 3:
         out = np.empty_like(img_f)
         for c in range(img_f.shape[2]):
-            out[:, :, c] = mean_shift_filter_core(
+            out[:, :, c] = _mean_shift_core(
                 img_f[:, :, c],
                 hs, hr, max_iter, eps
             )

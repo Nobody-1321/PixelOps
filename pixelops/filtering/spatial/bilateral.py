@@ -4,6 +4,10 @@ from numba import njit, prange
 from ..utils import convolve_separable_inplace
 from ..kernels import create_gaussian_kernel_radius
 
+from pixelops.core import (
+    to_float32,
+    validate_image
+)
 
 def binomial_coeffs(n: int, dtype=np.float32) -> np.ndarray:
     """
@@ -38,7 +42,7 @@ def binomial_coeffs(n: int, dtype=np.float32) -> np.ndarray:
     return coeffs
 
 @njit(parallel=True, fastmath=True, cache=True)
-def bilateral_filter_core(
+def _bilateral_core(
     I: np.ndarray,
     binom: np.ndarray,
     gauss_kernel: np.ndarray,
@@ -138,7 +142,7 @@ def bilateral_filter_core(
 
     return I
 
-def bilateral_filter(
+def bilateral(
     img: np.ndarray,
     ss: float,
     sr: float,
@@ -211,14 +215,15 @@ def bilateral_filter(
     if n <= 0 or n % 2 == 0:
         raise ValueError("n must be a positive odd integer.")
 
-    img_f = img.astype(np.float32) / 255.0
+    validate_image(img)
+    img_f = to_float32(img) 
 
     binom = binomial_coeffs(n, img_f.dtype)
     gauss_kernel = create_gaussian_kernel_radius(ss)
 
     # Grayscale
     if img_f.ndim == 2:
-        out = bilateral_filter_core(
+        out = _bilateral_core(
             img_f, binom, gauss_kernel, n_iter, sr
         )
 
@@ -226,7 +231,7 @@ def bilateral_filter(
     elif img_f.ndim == 3:
         out = np.empty_like(img_f)
         for c in range(img_f.shape[2]):
-            out[:, :, c] = bilateral_filter_core(
+            out[:, :, c] = _bilateral_core(
                 img_f[:, :, c],
                 binom,
                 gauss_kernel,

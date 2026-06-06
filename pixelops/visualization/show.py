@@ -9,8 +9,72 @@ import matplotlib.pyplot as plt
 import numpy as np
 import cv2 as cv
 
+from pixelops.core.validation import validate_image
 
-def _imshow(ax, img: np.ndarray, title: str) -> None:
+
+def show_image(ax, img: np.ndarray, title: str = "") -> None:
+    """
+    Display an image on a matplotlib axes.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Axes object where the image will be displayed.
+
+    img : np.ndarray
+        Input image with shape (H, W) or (H, W, 3).
+
+        Supported formats:
+        - Grayscale images
+        - RGB images
+
+        Supported dtypes:
+        - uint8
+        - float32 in [0, 1]
+
+    title : str, optional
+        Title displayed above the image.
+
+    Raises
+    ------
+    TypeError
+        If img is not a numpy array.
+
+    ValueError
+        If image shape is unsupported.
+
+    Notes
+    -----
+    - PixelOps internally uses RGB channel ordering.
+    - Floating-point images are expected in the range [0, 1].
+    - Float images are clipped to [0, 1] before visualization.
+    """
+
+    validate_image(img)
+
+    # Ensure valid visualization range for float images
+    if np.issubdtype(img.dtype, np.floating):
+        img = np.clip(img, 0.0, 1.0)
+
+    # Grayscale image
+    if img.ndim == 2:
+
+        ax.imshow(img, cmap="gray")
+
+    # RGB image
+    elif img.ndim == 3 and img.shape[2] == 3:
+
+        ax.imshow(img)
+
+    else:
+        raise ValueError(
+            "Expected image shape (H, W) or (H, W, 3)."
+        )
+
+    ax.set_title(title)
+    ax.axis("off")
+
+def imshow(ax, img: np.ndarray, title: str) -> None:
     """
     Helper to display an image on a matplotlib axes.
 

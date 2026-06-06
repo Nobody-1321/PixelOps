@@ -1,38 +1,51 @@
 import numpy as np
-import pixelops as pix
-from pixelops.filtering import gaussian_gradient, sobel_gradient, log_gradient
+import matplotlib.pyplot as plt
+from pixelops.filtering import gaussian_gradient, sobel_gradient 
+from pixelops.core import rescale_to_uint8
+from pixelops.io import imread
+from pixelops.visualization import show_image
 
-img = pix.open_image("./data/img/woman_ai.webp", mode="gray")
+img = imread("./data/img/woman_ai.webp", mode="gray")
 
 # Gaussian Gradient
 
 Gx, Gy, Gmag, Gphase = gaussian_gradient(img, sigma_s=0.5, sigma_d=0.5)
-Gx = pix.normalize_to_uint8(Gx)
-Gy = pix.normalize_to_uint8(Gy)
-Gmag = pix.normalize_to_uint8(Gmag)
-Gphase = pix.normalize_to_uint8(Gphase)
-pix.show_images(
-    [Gx, Gy, Gmag, Gphase],
-    titles=["Gradient X", "Gradient Y", "Gradient Magnitude", "Gradient Phase"]
-)   
+Gx = rescale_to_uint8(Gx)
+Gy = rescale_to_uint8(Gy)
+Gmag = rescale_to_uint8(Gmag)
+Gphase = rescale_to_uint8(Gphase)
+
+fig, ax = plt.subplots(2, 2, figsize=(12, 6))
+show_image(ax[0, 0], Gx, title="GX")
+show_image(ax[0, 1], Gy, title="GY")
+show_image(ax[1, 0], Gmag, title="Mag")
+show_image(ax[1, 1], Gphase, title="Phase")
+
+#plt.tight_layout()
+
+fig.subplots_adjust(
+    wspace=-0.5,
+    hspace=0.25
+)
+
+plt.show()
 
 # Sobel Gradient
 
 GX,GY,GMAG,GPHASE = sobel_gradient(img)
-GX = pix.normalize_to_uint8(GX)
-GY = pix.normalize_to_uint8(GY)
-GMAG = pix.normalize_to_uint8(GMAG)
-GPHASE = pix.normalize_to_uint8(GPHASE)
-pix.show_images(
-    [GX, GY, GMAG, GPHASE],
-    titles=["Gradient X", "Gradient Y", "Gradient Magnitude", "Gradient Phase"]
-) 
+GX = rescale_to_uint8(GX)
+GY = rescale_to_uint8(GY)
+GMAG = rescale_to_uint8(GMAG)
+GPHASE = rescale_to_uint8(GPHASE)
 
-# Laplacian of Gaussian Gradient
+fig, ax = plt.subplots(2, 2, figsize=(12, 6))
+show_image(ax[0, 0], GX, title="GX")
+show_image(ax[0, 1], GY, title="GY")
+show_image(ax[1, 0], GMAG, title="Mag")
+show_image(ax[1, 1], GPHASE, title="Phase")
 
-LOG = log_gradient(img, sigma_s=0.5, sigma_d=0.5)
-LOG = pix.normalize_to_uint8(LOG)
-pix.show_images(
-    [LOG,LOG],
-    titles=["Laplacian of Gaussian Gradient", "Laplacian of Gaussian Gradient"]
+fig.subplots_adjust(
+    wspace=-0.5,
+    hspace=0.25
 )
+plt.show()

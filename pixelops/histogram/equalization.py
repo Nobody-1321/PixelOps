@@ -1,7 +1,59 @@
+"""
+Histogram equalization and CLAHE utilities.
+
+This module provides histogram equalization for grayscale and RGB images,
+plus a CLAHE implementation for contrast enhancement.
+"""
+
 import numpy as np
 import cv2 as cv
-from .utils import cal_histogram_numba, clip_histogram_numba, cal_histogram, clip_histogram
 from numba import njit
+
+from pixelops.core.validation import validate_image, validate_grayscale
+
+from .utils import cal_histogram_numba, clip_histogram_numba
+
+def _validate_uint8_image(image: np.ndarray, *, allow_rgb: bool) -> None:
+    """Validate that an image is a uint8 grayscale or RGB array."""
+    validate_image(image)
+
+    if image.dtype != np.uint8:
+        raise TypeError("Expected uint8 image.")
+
+    if image.ndim == 2:
+        return
+
+    if allow_rgb and image.ndim == 3 and image.shape[2] == 3:
+        return
+
+    if allow_rgb:
+        raise ValueError("Expected grayscale image (H, W) or RGB image (H, W, 3).")
+
+    raise ValueError("Expected grayscale image (H, W).")
+
+
+def _validate_grid_size(grid_size: tuple[int, int]) -> None:
+    """Validate the CLAHE grid size."""
+    if not isinstance(grid_size, tuple) or len(grid_size) != 2:
+        raise TypeError("grid_size must be a tuple of two positive integers.")
+
+    n_rows, n_cols = grid_size
+
+    if not isinstance(n_rows, int) or not isinstance(n_cols, int):
+        raise TypeError("grid_size must contain integers.")
+
+    if n_rows <= 0 or n_cols <= 0:
+        raise ValueError("grid_size values must be positive.")
+
+
+def _validate_clip_limit(clip_limit: int) -> None:
+    """Validate the CLAHE clip limit."""
+    if not isinstance(clip_limit, (int, np.integer)):
+        raise TypeError("clip_limit must be an integer.")
+
+    if clip_limit <= 0:
+        raise ValueError("clip_limit must be positive.")
+
 
 #----------------------------------------------
 #        HISTOGRAM EQUALIZATION
@@ -9,12 +61,12 @@ from numba import njit
 
 def histogram_equalization_channel(channel):
     """
-    Applies histogram equalization to a single image channel.
+    Apply histogram equalization to a single grayscale channel.
 
     Parameters
     ----------
     channel : np.ndarray
-        Single-channel image (H×W), dtype uint8.
+        Single-channel image of shape (H, W) and dtype uint8.
 
     Returns
     -------
@@ -23,17 +75,15 @@ def histogram_equalization_channel(channel):
 
     Raises
     ------
+    TypeError
+        If the input is not a numpy array or is not uint8.
     ValueError
-        If the input is not a 2D uint8 array.
+        If the input is not a 2D grayscale array.
     """
-    if not isinstance(channel, np.ndarray):
-        raise TypeError("Input must be a numpy array.")
-
-    if channel.ndim != 2:
-        raise ValueError("Expected a single-channel image (H×W).")
+    validate_grayscale(channel)
 
     if channel.dtype != np.uint8:
-        raise ValueError("Expected channel of type uint8.")
+        raise TypeError("Expected uint8 image.")
 
     hist, _ = np.histogram(
         channel.ravel(),
@@ -59,17 +109,17 @@ def histogram_equalization_channel(channel):
 
 def histogram_equalization(image):
     """
-    Applies histogram equalization to a grayscale or BGR image.
+    Apply histogram equalization to a grayscale or RGB image.
 
     For grayscale images, histogram equalization is applied directly.
-    For BGR images, the image is converted to YCrCb color space, histogram
+    For RGB images, the image is converted to YCrCb color space, histogram
     equalization is applied to the Y (luminance) channel, and the image is
-    converted back to BGR.
+    converted back to RGB.
 
     Parameters
     ----------
     image : np.ndarray
-        Grayscale (H×W) or BGR (H×W×3) image, dtype uint8.
+        Grayscale (H, W) or RGB (H, W, 3) image, dtype uint8.
 
     Returns
     -------
@@ -78,26 +128,24 @@ def histogram_equalization(image):
 
     Raises
     ------
+    TypeError
+        If the input is not a numpy array or is not uint8.
     ValueError
-        If the input image has an unsupported shape or type.
+        If the input image has an unsupported shape.
     """
-    if not isinstance(image, np.ndarray):
-        raise TypeError("Input must be a numpy array.")
+    _validate_uint8_image(image, allow_rgb=True)
 
     if image.ndim == 2:
         return histogram_equalization_channel(image)
 
-    elif image.ndim == 3 and image.shape[2] == 3:
-        ycrcb = cv.cvtColor(image, cv.COLOR_BGR2YCrCb)
-        y, cr, cb = cv.split(ycrcb)
+    ycrcb = cv.cvtColor(image, cv.COLOR_RGB2YCrCb)
+    y, cr, cb = cv.split(ycrcb)
 
-        y_eq = histogram_equalization_channel(y)
+    y_eq = histogram_equalization_channel(y)
 
-        ycrcb_eq = cv.merge([y_eq, cr, cb])
-        return cv.cvtColor(ycrcb_eq, cv.COLOR_YCrCb2BGR)
+    ycrcb_eq = cv.merge([y_eq, cr, cb])
+    return cv.cvtColor(ycrcb_eq, cv.COLOR_YCrCb2RGB)
 
-    else:
-        raise ValueError("Unsupported image shape. Expected (H, W) or (H, W, 3).")
 
 #----------------------------------------------
 #        CLAHE IMPLEMENTATION
@@ -165,6 +213,7 @@ def compute_block_mappings(
     cell_w,
     clip_limit
 ):
+    """Compute CLAHE mapping tables for each tile in the grid."""
     mappings = np.empty((n_rows, n_cols, 256), dtype=np.uint8)
 
     for i in range(n_rows):
@@ -252,12 +301,35 @@ def clahe_core(
     -----
     - Expects uint8 input in [0, 255]
     - Intended for contrast enhancement (visualization)
+    
+    Parameters
+    ----------
+    image : np.ndarray
+        Grayscale image of shape (H, W) and dtype uint8.
+    clip_limit : int
+        Maximum allowed value per histogram bin.
+    grid_size : tuple[int, int]
+        Number of tiles in the vertical and horizontal directions.
+
+    Returns
+    -------
+    np.ndarray
+        CLAHE-enhanced grayscale image with the same shape and dtype.
+
+    Raises
+    ------
+    TypeError
+        If the input image, clip_limit, or grid_size is invalid.
+    ValueError
+        If the image dimensions are invalid or the grid is larger than the image.
     """
-    if image.ndim != 2:
-        raise ValueError("Expected a grayscale image (H, W).")
+    validate_grayscale(image)
 
     if image.dtype != np.uint8:
         raise TypeError("CLAHE expects uint8 image.")
+
+    _validate_clip_limit(clip_limit)
+    _validate_grid_size(grid_size)
 
     n_rows, n_cols = grid_size
     h, w = image.shape
@@ -287,35 +359,43 @@ def clahe(
     grid_size: tuple[int, int] = (8, 8)
 ) -> np.ndarray:
     """
-    Apply CLAHE to a grayscale or BGR image.
+    Apply CLAHE to a grayscale or RGB image.
 
     This function is intended for visualization and contrast enhancement.
 
     Parameters
     ----------
     image : np.ndarray
-        Grayscale (H, W) or BGR (H, W, 3) uint8 image.
+        Grayscale (H, W) or RGB (H, W, 3) uint8 image.
+    clip_limit : int
+        Maximum allowed value per histogram bin.
+    grid_size : tuple[int, int]
+        Number of tiles in the vertical and horizontal directions.
 
     Returns
     -------
     np.ndarray
         Contrast-enhanced image (uint8).
-    """
 
-    if image.dtype != np.uint8:
-        raise TypeError("CLAHE expects uint8 image.")
+    Raises
+    ------
+    TypeError
+        If the input image, clip_limit, or grid_size is invalid.
+    ValueError
+        If the input image has an unsupported shape.
+    """
+    _validate_uint8_image(image, allow_rgb=True)
+    _validate_clip_limit(clip_limit)
+    _validate_grid_size(grid_size)
 
     if image.ndim == 2:
         return clahe_core(image, clip_limit, grid_size)
 
-    elif image.ndim == 3 and image.shape[2] == 3:
-        lab = cv.cvtColor(image, cv.COLOR_BGR2LAB)
-        l, a, b = cv.split(lab)
+    lab = cv.cvtColor(image, cv.COLOR_RGB2LAB)
+    l, a, b = cv.split(lab)
 
-        l_eq = clahe_core(l, clip_limit, grid_size)
+    l_eq = clahe_core(l, clip_limit, grid_size)
 
-        lab_eq = cv.merge((l_eq, a, b))
-        return cv.cvtColor(lab_eq, cv.COLOR_LAB2BGR)
+    lab_eq = cv.merge((l_eq, a, b))
+    return cv.cvtColor(lab_eq, cv.COLOR_LAB2RGB)
 
-    else:
-        raise ValueError("Invalid image dimensions.")
