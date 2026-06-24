@@ -1,12 +1,16 @@
 import numpy as np
 from numba import njit, prange
+from .frequency.fft import fourier_transform_2d, inverse_fourier_transform_2d
+from pixelops.core import (
+    to_float32,
+    validate_image
+)
 
 # ----------------------------------------------
 #
 #        Numba-optimized filtering utilities
 #
 # ----------------------------------------------
-
 
 @njit(inline="always")
 def reflect(idx: int, size: int) -> int:
@@ -204,3 +208,74 @@ def convolve_horizontal_1d(
             tmp[y, x] = acc
 
     return tmp
+
+@njit(parallel=True, fastmath=True, cache=True)
+def _distance_matrix(shape: tuple) -> np.ndarray:
+    """
+    Compute a centered Euclidean distance matrix from the frequency grid origin.
+
+    Parameters
+    ----------
+    shape : tuple
+        Dimensions of the matrix as (height, width).
+
+    Returns
+    -------
+    np.ndarray
+        Float32 2D array representing the distance D(u, v) to the center.
+    """
+    H, W = shape
+    crow, ccol = H // 2, W // 2
+    distance = np.empty((H, W), dtype=np.float32)
+    
+    for i in prange(H):
+        for j in range(W):
+            dy = float(i - crow)
+            dx = float(j - ccol)
+            distance[i, j] = np.sqrt(dx * dx + dy * dy)
+            
+    return distance
+
+def apply_frequency_filter(image: np.ndarray, mask: np.ndarray) -> np.ndarray:
+    """
+    Apply a centered frequency-domain mask to an image.
+
+    This function automatically handles forward FFT, shifting operations,
+    mask multiplication, and recovery back into normalized spatial space.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Input spatial image of shape (H, W) or (H, W, C).
+    mask : np.ndarray
+        Centered filter mask matrix with shape (H, W).
+
+    Returns
+    -------
+    np.ndarray
+        Filtered spatial image (float32) normalized to the [0.0, 1.0] interval.
+    """
+    validate_image(image)
+    img_f = to_float32(image)
+
+    if mask.ndim != 2:
+        raise ValueError("Mask must be a 2D matrix.")
+    if img_f.shape[:2] != mask.shape:
+        raise ValueError("Image spatial dimensions and mask shape must match.")
+
+    if img_f.ndim == 2:
+        dft = fourier_transform_2d(img_f)
+        dft_shifted = np.fft.fftshift(dft)
+        filtered_shifted = dft_shifted * mask
+        filtered_dft = np.fft.ifftshift(filtered_shifted)
+        out = inverse_fourier_transform_2d(filtered_dft)
+    else:
+        out = np.empty_like(img_f)
+        for c in range(img_f.shape[2]):
+            dft = fourier_transform_2d(img_f[:, :, c])
+            dft_shifted = np.fft.fftshift(dft)
+            filtered_shifted = dft_shifted * mask
+            filtered_dft = np.fft.ifftshift(filtered_shifted)
+        out[:, :, c] = inverse_fourier_transform_2d(filtered_dft)
+
+    return np.clip(out, 0.0, 1.0)

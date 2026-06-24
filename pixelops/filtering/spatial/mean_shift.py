@@ -137,7 +137,7 @@ def mean_shift(
     hs: int,
     hr: float,
     max_iter: int = 5,
-    eps: float = 1.0
+    eps: float = 0.001
 ) -> np.ndarray:
     """
     Apply mean shift filtering to a grayscale or multi-channel image.

@@ -31,7 +31,7 @@ __all__ = [
     'quantization',
     'color',
     'io',
-    # Solo funciones críticas
+    
     'imread',
     'show_side_by_side',
     'show_images',
