@@ -16,6 +16,10 @@ from .spatial.anisotropic_diffusion import anisotropic_diffusion
 
 from .spatial.isotropic_diffusion import isotropic_diffusion
 
+from .spatial.etf import compute_etf
+
+from .spatial.fdog import apply_fdog
+
 from .utils import apply_frequency_filter
 
 from .frequency.homomorphic import homomorphic
@@ -38,7 +42,10 @@ from .frequency.masks import (
     unsharp_masking_mask,
 )
 
+
 __all__ = [
+    "compute_etf",
+    "apply_fdog",
     "gaussian",
     "gaussian_gradient",
     "sobel_gradient",

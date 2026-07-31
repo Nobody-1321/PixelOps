@@ -18,6 +18,7 @@ pixelops.egg-info/
 # Temporary and example folders
 examples/temp/
 examples/WIP/
+examples/gui/
 
 # Local temporary folders
 /basura/
