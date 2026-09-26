@@ -4,7 +4,7 @@ from pixelops.io import imread
 from pixelops.visualization import show_image
 
 # Load an RGB image from the existing data directory[cite: 6]
-img_rgb = imread("./data/img/media_NO.jpg", mode="rgb")
+img_rgb = imread("./data/img/margaritaNO.webp", mode="rgb")
 
 if img_rgb is None:
     raise FileNotFoundError("Image not found. Please check the path.")
@@ -13,12 +13,12 @@ if img_rgb is None:
 # Using the parameters optimized for this algorithm
 out_lines = coherent_line_drawing(
     img_rgb, 
-    etf_r=3, 
-    fdog_iter=2, 
-    sigma_m=1.9, 
-    sigma_c=0.6, 
-    rho=0.99, 
-    tau=0.9
+    etf_r=2, 
+    fdog_iter=3, 
+    sigma_m=2.5, 
+    sigma_c=0.9, 
+    rho=0.990, 
+    tau=0.4
 )
 
 # Plot the original image and the line drawing side by side[cite: 6]
@@ -27,17 +27,16 @@ show_image(ax[0], img_rgb, title="Original")
 show_image(ax[1], out_lines, title="Coherent Line Drawing")
 plt.show()
 
-# If you also want to test it on a grayscale image directly[cite: 6]
-img_gray = imread("./data/img/media_NO.jpg", mode="gray")
+img_gray = imread("./data/img/redrose.png", mode="gray")
 
 out_lines_gray = coherent_line_drawing(
     img_gray, 
-    etf_r=5, 
-    fdog_iter=3, 
-    sigma_m=3.0, 
-    sigma_c=1.0, 
-    rho=0.99, 
-    tau=0.5
+    etf_r=1, 
+    fdog_iter=1, 
+    sigma_m=2.5, 
+    sigma_c=0.7, 
+    rho=0.999, 
+    tau=0.9
 )
 
 fig, ax = plt.subplots(1, 2, figsize=(12, 6))
